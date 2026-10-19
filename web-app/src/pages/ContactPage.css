@@ -1,0 +1,13 @@
+/* ============================================================
+   CONTACT PAGE LAYOUT
+   ============================================================ */
+.contact-wrap {
+  display: flex;
+  gap: 48px;
+}
+
+@media (max-width: 600px) {
+  .contact-wrap {
+    flex-direction: column !important;
+  }
+}

@@ -1,0 +1,99 @@
+/* ============================================================
+   CASE STUDIES RESPONSIVE LAYOUT SYSTEM
+   ============================================================ */
+.case-study-grid-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 64px;
+  align-items: start;
+}
+
+.case-study-toc-sidebar {
+  position: sticky;
+  top: 100px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 24px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+}
+
+.case-study-toc-links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.case-study-toc-link {
+  display: block;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.65);
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+  line-height: 1.4;
+}
+
+.case-study-toc-link:hover {
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.case-study-toc-link.active {
+  color: var(--sky, #8FC1FF);
+  background: rgba(143, 193, 255, 0.12);
+  font-weight: 600;
+  border-left: 2px solid var(--sky, #8FC1FF);
+}
+
+.case-study-mobile-toc {
+  display: none;
+}
+
+.case-study-table-container {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Tablet & Mobile Breakpoints for Case Studies */
+@media (max-width: 1024px) {
+  .case-study-grid-layout {
+    grid-template-columns: 1fr !important;
+    gap: 36px !important;
+  }
+
+  .case-study-toc-sidebar {
+    display: none !important;
+  }
+
+  .case-study-mobile-toc {
+    display: block;
+    margin-bottom: 32px;
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 18px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+}
+
+@media (max-width: 768px) {
+  .case-study-grid-layout {
+    gap: 24px !important;
+  }
+
+  .case-studies-hero {
+    padding: 120px 0 60px !important;
+    min-height: auto !important;
+  }
+
+  .case-study-header-wrap {
+    padding-top: 20px;
+  }
+}

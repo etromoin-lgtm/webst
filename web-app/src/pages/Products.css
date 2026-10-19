@@ -1,0 +1,352 @@
+/* ============================================================
+   PRODUCTS PAGE & FIXED VIEWPORT OPTIMIZATION
+   ============================================================ */
+
+/* Products Hero */
+.products-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: min(680px, 75svh);
+  padding: 140px 0 90px;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(5, 8, 15, 0.32), rgba(10, 21, 48, 0.58)),
+    linear-gradient(180deg, var(--ink), var(--mid) 80%, #0d1f4d);
+}
+
+.products-hero-orb {
+  position: absolute;
+  top: -25%;
+  right: -10%;
+  width: min(75vw, 900px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(47, 107, 255, 0.3), rgba(27, 63, 216, 0.1) 40%, transparent 68%);
+  filter: blur(20px);
+  animation: products-drift 22s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes products-drift {
+  to {
+    transform: translate(-26px, 22px) scale(1.05);
+  }
+}
+
+.products-hero-flute {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.02) 0 2px,
+    transparent 2px 40px,
+    rgba(0, 0, 0, 0.12) 40px 42px
+  );
+  mask-image: linear-gradient(180deg, transparent, #000 30%, #000 78%, transparent);
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 30%, #000 78%, transparent);
+  pointer-events: none;
+}
+
+.products-hero-wrap {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+}
+
+.products-eyebrow {
+  margin-bottom: 22px;
+  color: var(--sky);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+}
+
+.products-hero h1 {
+  max-width: 16ch;
+  font-size: clamp(46px, 7vw, 96px);
+  font-weight: 300;
+  line-height: 0.96;
+  letter-spacing: -0.04em;
+  color: var(--h);
+}
+
+.products-hero-copy {
+  max-width: 58ch;
+  margin: 24px 0 0;
+  font-size: clamp(16px, 1.25vw, 18px);
+  line-height: 1.65;
+  color: var(--b);
+}
+
+.products-hero-index,
+.products-hero-place {
+  position: absolute;
+  z-index: 1;
+  bottom: 28px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.products-hero-index {
+  left: max(24px, calc((100vw - 1120px) / 2));
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--sky);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.products-hero-place {
+  right: max(24px, calc((100vw - 1120px) / 2));
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(244, 246, 249, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* ============================================================
+   PRODUCT CATALOG GRID & CARDS (FIXED VIEWPORT OPTIMIZED)
+   ============================================================ */
+.products-catalog-section {
+  padding: clamp(64px, 8vw, 110px) 0;
+  position: relative;
+}
+
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(20px, 2.2vw, 32px);
+  align-items: stretch;
+}
+
+.product-card {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 20px;
+  padding: 26px 24px;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 16px 36px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.product-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(143, 193, 255, 0.35);
+  box-shadow: 0 24px 44px -12px rgba(47, 107, 255, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* Fixed-Viewport Optimized Media Container */
+.product-card-media {
+  position: relative;
+  width: calc(100% + 48px);
+  margin: -26px -24px 18px -24px;
+  height: clamp(130px, 16vh, 180px);
+  background: radial-gradient(circle at 50% 50%, rgba(14, 28, 64, 0.6), rgba(5, 8, 15, 0.95));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.product-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 10px;
+  transition: transform 0.4s ease;
+}
+
+.product-card:hover .product-card-img {
+  transform: scale(1.04);
+}
+
+.product-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  gap: 10px;
+}
+
+.product-pill-badge {
+  background: rgba(47, 107, 255, 0.15);
+  border: 1px solid rgba(143, 193, 255, 0.4);
+  color: #8FC1FF;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.product-category-label {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: rgba(244, 246, 249, 0.55);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.product-card h3 {
+  font-size: 20px;
+  font-weight: 500;
+  color: #F4F6F9;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  margin-bottom: 8px;
+}
+
+.product-card-desc {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: rgba(244, 246, 249, 0.7);
+  margin-bottom: 14px;
+  min-height: 42px;
+}
+
+/* Compact, legible metrics pod */
+.product-metrics-pod {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 16px 0;
+}
+
+.product-metrics-divider {
+  background: rgba(255, 255, 255, 0.09);
+  height: 36px;
+  width: 1px;
+}
+
+.product-metric-num {
+  font-size: 19px;
+  font-weight: 500;
+  color: #F4F6F9;
+  line-height: 1.1;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.product-metric-lbl {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(244, 246, 249, 0.55);
+  margin-top: 4px;
+}
+
+/* Clear, legible benefits list */
+.product-benefits-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-grow: 1;
+}
+
+.product-benefit-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 13px;
+  color: rgba(244, 246, 249, 0.85);
+  line-height: 1.45;
+}
+
+.product-benefit-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: rgba(143, 193, 255, 0.1);
+  color: var(--sky);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Touch-friendly full width action button */
+.product-explore-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 44px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(143, 193, 255, 0.3);
+  color: #F4F6F9;
+  font-weight: 500;
+  font-size: 13.5px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  margin-top: auto;
+}
+
+.product-explore-btn:hover {
+  background: var(--sky);
+  color: var(--ink);
+  border-color: var(--sky);
+  box-shadow: 0 0 20px rgba(143, 193, 255, 0.4);
+}
+
+/* Media Queries for Viewports */
+@media (max-width: 1080px) {
+  .products-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .products-hero {
+    min-height: 65svh;
+    padding: 110px 0 70px;
+  }
+
+  .products-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+@media (max-width: 600px) {
+  .products-hero-place {
+    display: none;
+  }
+}

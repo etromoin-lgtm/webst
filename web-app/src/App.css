@@ -1,0 +1,14 @@
+/* ============================================================
+   ETROMO APPLICATION SHELL
+   Note: Page & component styles are modularized and co-located:
+   - Navbar: src/components/layout/Navbar.css
+   - Footer: src/components/layout/Footer.css
+   - About:  src/pages/AboutPage.css
+   - Home:   src/pages/HomePage.css
+   - Products: src/pages/Products.css
+   - Case Studies: src/pages/CaseStudies.css
+   - Partners: src/pages/Partners.css
+   - Contact: src/pages/ContactPage.css
+   - Blog:   src/blog/Blog.css
+   - Admin:  src/admin/Admin.css
+   ============================================================ */

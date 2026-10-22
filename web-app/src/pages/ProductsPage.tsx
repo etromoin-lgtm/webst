@@ -79,7 +79,7 @@ export function ProductsList() {
   const [products, setProducts] = useState<ProductData[]>(defaultProducts);
 
   useEffect(() => {
-    fetch('/api/admin/products')
+    fetch('/api/products')
       .then(res => res.json())
       .then(data => {
         if (data.products && data.products.length > 0) {

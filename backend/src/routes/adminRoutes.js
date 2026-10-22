@@ -21,9 +21,13 @@ const { getAllTeam, createTeamMember, updateTeamMember, deleteTeamMember } = req
 const { getSeoSettings, updateSeoSettings, updateSiteSettings, getSiteSettings } = require('../controllers/settingsController');
 
 const { loginRateLimiter } = require('../middleware/rateLimiter');
+const { requireAdminAuth } = require('../middleware/authMiddleware');
 
-// Admin Auth
+// Admin Auth (Public, rate-limited)
 router.post('/login', loginRateLimiter, login);
+
+// Protect all subsequent administrative routes
+router.use(requireAdminAuth);
 
 // Webhook config
 router.get('/webhooks', getWebhooks);

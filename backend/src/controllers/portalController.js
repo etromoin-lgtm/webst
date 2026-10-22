@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const { hashPassword, verifyPassword } = require('../middleware/authMiddleware');
 
 // --- CLIENT AUTH & REGISTRATION ---
 const registerClient = async (req, res) => {
@@ -25,11 +26,14 @@ const registerClient = async (req, res) => {
 
     const orgId = orgResult.lastID;
 
+    // Securely hash password
+    const secureHash = hashPassword(password);
+
     // Create User
     const userResult = await db.run(
       `INSERT INTO portal_users (organization_id, email, password_hash, full_name, phone, role)
        VALUES (?, ?, ?, ?, ?, 'CLIENT')`,
-      [orgId, primary_email, password, contact_name || legal_name, phone || '']
+      [orgId, primary_email, secureHash, contact_name || legal_name, phone || '']
     );
 
     const userId = userResult.lastID;
@@ -79,16 +83,26 @@ const registerClient = async (req, res) => {
 const loginClient = async (req, res) => {
   try {
     const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: 'Email and password are required.' });
+    }
+
     const user = await db.get(
       `SELECT u.*, o.legal_name as company_name, o.verification_status 
        FROM portal_users u 
        JOIN organizations o ON u.organization_id = o.id 
-       WHERE u.email = ? AND u.password_hash = ? AND u.is_active = 1`,
-      [email, password]
+       WHERE u.email = ? AND u.is_active = 1`,
+      [email]
     );
 
-    if (!user) {
+    if (!user || !verifyPassword(password, user.password_hash)) {
       return res.status(401).json({ success: false, error: 'Invalid email or password.' });
+    }
+
+    // Auto-upgrade legacy plaintext passwords to secure hash on login
+    if (!user.password_hash.includes(':')) {
+      const upgradedHash = hashPassword(password);
+      db.run('UPDATE portal_users SET password_hash = ? WHERE id = ?', [upgradedHash, user.id]).catch(() => {});
     }
 
     res.json({
@@ -99,7 +113,7 @@ const loginClient = async (req, res) => {
         organization_id: user.organization_id,
         full_name: user.full_name,
         email: user.email,
-        phone: user.phone,
+        phone: user.phone || '',
         company: user.company_name,
         verification_status: user.verification_status
       }

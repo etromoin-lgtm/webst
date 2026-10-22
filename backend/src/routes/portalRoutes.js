@@ -25,6 +25,8 @@ const {
   reviewClaim
 } = require('../controllers/portalAdminController');
 
+const { requireAdminAuth } = require('../middleware/authMiddleware');
+
 // --- CLIENT AUTH & REGISTRATION ---
 router.post('/register', registerClient);
 router.post('/login', loginClient);
@@ -36,7 +38,8 @@ router.get('/tickets/:id', getTicketDetails);
 router.post('/tickets/:id/reply', replyTicket);
 router.post('/messages/:id/read', markMessageRead);
 
-// --- ADMIN SIDE CLIENT MANAGEMENT ---
+// --- ADMIN SIDE CLIENT MANAGEMENT (Guarded) ---
+router.use('/admin', requireAdminAuth);
 router.get('/admin/clients', getClientsList);
 router.get('/admin/clients/:orgId', getClientFullProfile);
 router.post('/admin/projects', addProject);

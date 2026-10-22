@@ -67,10 +67,20 @@ export function AdminClientManager({ apiBase }: Props) {
   const [msgBody, setMsgBody] = useState('');
   const [msgPriority, setMsgPriority] = useState('NORMAL');
 
+  // Authenticated fetch helper for admin portal calls
+  const adminFetch = (url: string, options: RequestInit = {}) => {
+    const token = localStorage.getItem('admin_token');
+    const headers = new Headers(options.headers || {});
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+    return fetch(url, { ...options, headers });
+  };
+
   // Fetch all clients
   const loadClients = async () => {
     try {
-      const res = await fetch(`${apiBase}/api/portal/admin/clients`);
+      const res = await adminFetch(`${apiBase}/api/portal/admin/clients`);
       const data = await res.json();
       if (data.success) {
         setClients(data.clients || []);
@@ -87,7 +97,7 @@ export function AdminClientManager({ apiBase }: Props) {
   const loadClientProfile = async (orgId: number) => {
     setProfileLoading(true);
     try {
-      const res = await fetch(`${apiBase}/api/portal/admin/clients/${orgId}`);
+      const res = await adminFetch(`${apiBase}/api/portal/admin/clients/${orgId}`);
       const data = await res.json();
       if (data.success) {
         setClientProfile(data.profile);
@@ -115,7 +125,7 @@ export function AdminClientManager({ apiBase }: Props) {
     if (!selectedClientId || !projectName) return;
 
     try {
-      const res = await fetch(`${apiBase}/api/portal/admin/projects`, {
+      const res = await adminFetch(`${apiBase}/api/portal/admin/projects`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -144,7 +154,7 @@ export function AdminClientManager({ apiBase }: Props) {
   // Handle Quick Status Change
   const handleQuickStatusChange = async (projectId: number, newStatus: string) => {
     try {
-      await fetch(`${apiBase}/api/portal/admin/projects/${projectId}`, {
+      await adminFetch(`${apiBase}/api/portal/admin/projects/${projectId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
@@ -161,7 +171,7 @@ export function AdminClientManager({ apiBase }: Props) {
     try {
       const payload: any = { progress_percentage: newPercent };
       if (newStatus) payload.status = newStatus;
-      await fetch(`${apiBase}/api/portal/admin/projects/${projectId}`, {
+      await adminFetch(`${apiBase}/api/portal/admin/projects/${projectId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -191,7 +201,7 @@ export function AdminClientManager({ apiBase }: Props) {
     if (!editingProject) return;
 
     try {
-      const res = await fetch(`${apiBase}/api/portal/admin/projects/${editingProject.id}`, {
+      const res = await adminFetch(`${apiBase}/api/portal/admin/projects/${editingProject.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -222,7 +232,7 @@ export function AdminClientManager({ apiBase }: Props) {
     if (!deletingProject) return;
 
     try {
-      const res = await fetch(`${apiBase}/api/portal/admin/projects/${deletingProject.id}`, {
+      const res = await adminFetch(`${apiBase}/api/portal/admin/projects/${deletingProject.id}`, {
         method: 'DELETE'
       });
 
@@ -244,7 +254,7 @@ export function AdminClientManager({ apiBase }: Props) {
     if (!selectedClientId || !productName) return;
 
     try {
-      const res = await fetch(`${apiBase}/api/portal/admin/products`, {
+      const res = await adminFetch(`${apiBase}/api/portal/admin/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -273,7 +283,7 @@ export function AdminClientManager({ apiBase }: Props) {
     if (!selectedClientId || !invTitle) return;
 
     try {
-      const res = await fetch(`${apiBase}/api/portal/admin/invoices`, {
+      const res = await adminFetch(`${apiBase}/api/portal/admin/invoices`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -300,7 +310,7 @@ export function AdminClientManager({ apiBase }: Props) {
     if (!selectedClientId || !msgTitle || !msgBody) return;
 
     try {
-      const res = await fetch(`${apiBase}/api/portal/admin/messages`, {
+      const res = await adminFetch(`${apiBase}/api/portal/admin/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -325,7 +335,7 @@ export function AdminClientManager({ apiBase }: Props) {
   // Handle Review Claim
   const handleReviewClaim = async (claimId: number, status: 'APPROVED' | 'REJECTED') => {
     try {
-      await fetch(`${apiBase}/api/portal/admin/claims/${claimId}`, {
+      await adminFetch(`${apiBase}/api/portal/admin/claims/${claimId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

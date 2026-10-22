@@ -1,16 +1,31 @@
+const crypto = require('crypto');
 const db = require('../config/database');
 const { getWebhookConfig, setWebhookUrl } = require('../services/webhookService');
+const { createAdminToken } = require('../middleware/authMiddleware');
+
+// Constant-time safe string equality
+function safeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const aBuf = Buffer.from(a);
+  const bBuf = Buffer.from(b);
+  if (aBuf.length !== bBuf.length) return false;
+  return crypto.timingSafeEqual(aBuf, bBuf);
+}
 
 // Admin Auth
 const login = (req, res) => {
   const { username, password } = req.body;
-  if (username === 'admin' && password === 'admin123') {
+  const expectedUser = process.env.ADMIN_USERNAME || 'admin';
+  const expectedPass = process.env.ADMIN_PASSWORD || 'admin123';
+
+  if (safeEqual(username, expectedUser) && safeEqual(password, expectedPass)) {
     if (typeof req.recordLoginSuccess === 'function') {
       req.recordLoginSuccess();
     }
+    const token = createAdminToken({ role: 'super_admin', username });
     return res.status(200).json({
       success: true,
-      token: 'admin-jwt-token-secure-123',
+      token,
       role: 'super_admin'
     });
   } else {

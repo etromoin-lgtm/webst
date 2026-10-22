@@ -197,20 +197,28 @@ export function AdminDashboard() {
 
   const API = '';
 
+  const authFetch = (url: string, options: RequestInit = {}) => {
+    const headers = new Headers(options.headers || {});
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+    return fetch(url, { ...options, headers });
+  };
+
   const loadAll = async () => {
     if (!token) return;
     setLoading(true);
     try {
       const [s, apps, ctcs, bks, bls, prds, tm, wh, seo, setts] = await Promise.all([
-        fetch(`${API}/api/admin/stats`).then(r => r.json()).catch(() => ({})),
-        fetch(`${API}/api/admin/applications`).then(r => r.json()).catch(() => ({ applications: [] })),
-        fetch(`${API}/api/admin/contacts`).then(r => r.json()).catch(() => ({ contacts: [] })),
-        fetch(`${API}/api/admin/bookings`).then(r => r.json()).catch(() => ({ bookings: [] })),
-        fetch(`${API}/api/admin/blogs`).then(r => r.json()).catch(() => ({ blogs: [] })),
-        fetch(`${API}/api/admin/products`).then(r => r.json()).catch(() => ({ products: [] })),
-        fetch(`${API}/api/admin/team`).then(r => r.json()).catch(() => ({ team: [] })),
-        fetch(`${API}/api/admin/webhooks`).then(r => r.json()).catch(() => ({ webhook: { url: null } })),
-        fetch(`${API}/api/admin/seo`).then(r => r.json()).catch(() => ({ seo: [] })),
+        authFetch(`${API}/api/admin/stats`).then(r => r.json()).catch(() => ({})),
+        authFetch(`${API}/api/admin/applications`).then(r => r.json()).catch(() => ({ applications: [] })),
+        authFetch(`${API}/api/admin/contacts`).then(r => r.json()).catch(() => ({ contacts: [] })),
+        authFetch(`${API}/api/admin/bookings`).then(r => r.json()).catch(() => ({ bookings: [] })),
+        authFetch(`${API}/api/admin/blogs`).then(r => r.json()).catch(() => ({ blogs: [] })),
+        authFetch(`${API}/api/admin/products`).then(r => r.json()).catch(() => ({ products: [] })),
+        authFetch(`${API}/api/admin/team`).then(r => r.json()).catch(() => ({ team: [] })),
+        authFetch(`${API}/api/admin/webhooks`).then(r => r.json()).catch(() => ({ webhook: { url: null } })),
+        authFetch(`${API}/api/admin/seo`).then(r => r.json()).catch(() => ({ seo: [] })),
         fetch(`${API}/api/settings`).then(r => r.json()).catch(() => ({ settings: {} })),
       ]);
       setStats(s);
@@ -280,7 +288,7 @@ export function AdminDashboard() {
         if (typeof data.remainingAttempts === 'number') {
           setRemainingAttempts(data.remainingAttempts);
         }
-        setLoginError(data.error || 'Invalid credentials. Try admin / admin123');
+        setLoginError(data.error || 'Invalid credentials.');
       }
     } catch {
       setLoginError('Server unreachable. Is the backend running?');

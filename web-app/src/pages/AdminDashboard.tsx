@@ -216,29 +216,114 @@ export function AdminDashboard() {
     return fallback;
   };
 
+  // localStorage helpers
+  const lsGet = (key: string, def: any = []) => {
+    try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : def; } catch { return def; }
+  };
+
   const loadAll = async () => {
     if (!token) return;
     setLoading(true);
     try {
       const [s, apps, ctcs, bks, bls, prds, tm, wh, seo, setts] = await Promise.all([
-        safeJson(authFetch(`${API}/api/admin/stats`), { contacts: 12, bookings: 8, applications: 6, blogs: 5, products: 4, team: 6, case_studies: 3 }),
-        safeJson(authFetch(`${API}/api/admin/applications`), { applications: [] }),
-        safeJson(authFetch(`${API}/api/admin/contacts`), { contacts: [] }),
-        safeJson(authFetch(`${API}/api/admin/bookings`), { bookings: [] }),
-        safeJson(authFetch(`${API}/api/admin/blogs`), { blogs: [] }),
-        safeJson(authFetch(`${API}/api/admin/products`), { products: [] }),
-        safeJson(authFetch(`${API}/api/admin/team`), { team: [] }),
+        safeJson(authFetch(`${API}/api/admin/stats`), null),
+        safeJson(authFetch(`${API}/api/admin/applications`), null),
+        safeJson(authFetch(`${API}/api/admin/contacts`), null),
+        safeJson(authFetch(`${API}/api/admin/bookings`), null),
+        safeJson(authFetch(`${API}/api/admin/blogs`), null),
+        safeJson(authFetch(`${API}/api/admin/products`), null),
+        safeJson(authFetch(`${API}/api/admin/team`), null),
         safeJson(authFetch(`${API}/api/admin/webhooks`), { webhook: { url: null } }),
         safeJson(authFetch(`${API}/api/admin/seo`), { seo: [] }),
         safeJson(fetch(`${API}/api/settings`), { settings: {} }),
       ]);
-      setStats(s);
-      setApplications(apps.applications || []);
-      setContacts(ctcs.contacts || []);
-      setBookings(bks.bookings || []);
-      setBlogs(bls.blogs || []);
-      setProducts(prds.products || []);
-      setTeam(tm.team || []);
+
+      // ── LOCAL STORAGE FALLBACK ─────────────────────────────────────────────
+      // When the backend API is unavailable (Vercel static hosting returns HTML),
+      // we read from localStorage where form submissions are persisted locally.
+
+      // BOOKINGS – saved by ContactPage as etromo_saved_bookings
+      let resolvedBookings: any[] = bks?.bookings || [];
+      if (!resolvedBookings.length) {
+        resolvedBookings = (lsGet('etromo_saved_bookings', []) as any[]).map((b: any, i: number) => ({
+          id: b.id || `local-bk-${i + 1}`,
+          name: b.name || 'Visitor',
+          email: b.email || '',
+          phone: b.phone || '',
+          company: b.company || '',
+          date: b.date || b.bookedAt || null,
+          time: b.time || '',
+          topics: b.topics || [],
+          message: b.message || '',
+          status: b.status || 'Scheduled',
+          created_at: b.bookedAt || b.created_at || new Date().toISOString()
+        }));
+      }
+
+      // PARTNER APPLICATIONS – saved by PartnerApplyPage as etromo_partner_apps
+      let resolvedApps: any[] = apps?.applications || [];
+      if (!resolvedApps.length) {
+        const localApps: Record<string, any> = lsGet('etromo_partner_apps', {});
+        resolvedApps = Object.values(localApps).map((a: any, i: number) => ({
+          id: a.id || `local-app-${i + 1}`,
+          code: a.code || '',
+          name: a.name || 'Applicant',
+          email: a.email || '',
+          company: a.company || '',
+          type: a.type || 'sales',
+          status: a.status || 'Pending',
+          experience: a.experience || '',
+          linkedin: a.linkedin || '',
+          notes: a.notes || '',
+          created_at: a.date || a.created_at || new Date().toISOString()
+        }));
+      }
+
+      // CONTACT MESSAGES – saved by contact forms as etromo_saved_contacts
+      let resolvedContacts: any[] = ctcs?.contacts || [];
+      if (!resolvedContacts.length) {
+        resolvedContacts = (lsGet('etromo_saved_contacts', []) as any[]).map((c: any, i: number) => ({
+          id: c.id || `local-ct-${i + 1}`,
+          name: c.name || 'Visitor',
+          email: c.email || '',
+          company: c.company || '',
+          phone: c.phone || '',
+          message: c.message || '',
+          status: c.status || 'New',
+          created_at: c.sentAt || c.created_at || new Date().toISOString()
+        }));
+      }
+
+      // PRODUCTS – admin-managed, saved locally as etromo_admin_products
+      let resolvedProducts: any[] = prds?.products || [];
+      if (!resolvedProducts.length) resolvedProducts = lsGet('etromo_admin_products', []);
+
+      // TEAM – admin-managed, saved locally as etromo_admin_team
+      let resolvedTeam: any[] = tm?.team || [];
+      if (!resolvedTeam.length) resolvedTeam = lsGet('etromo_admin_team', []);
+
+      // BLOGS – admin-managed, saved locally as etromo_admin_blogs
+      let resolvedBlogs: any[] = bls?.blogs || [];
+      if (!resolvedBlogs.length) resolvedBlogs = lsGet('etromo_admin_blogs', []);
+
+      // Recompute stats from actual resolved data
+      const resolvedStats = {
+        contacts: resolvedContacts.length || s?.contacts || 0,
+        bookings: resolvedBookings.length || s?.bookings || 0,
+        applications: resolvedApps.length || s?.applications || 0,
+        blogs: resolvedBlogs.length || s?.blogs || 0,
+        products: resolvedProducts.length || s?.products || 0,
+        team: resolvedTeam.length || s?.team || 0,
+        case_studies: s?.case_studies || 0
+      };
+
+      setStats(resolvedStats);
+      setApplications(resolvedApps);
+      setContacts(resolvedContacts);
+      setBookings(resolvedBookings);
+      setBlogs(resolvedBlogs);
+      setProducts(resolvedProducts);
+      setTeam(resolvedTeam);
       setWebhooks(wh);
       setSeoSettings(seo.seo || []);
       setSiteSettings(setts.settings || {});
@@ -937,7 +1022,7 @@ export function AdminDashboard() {
                           <h4 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>{b.title}</h4>
                           <p style={{ opacity: 0.4, fontSize: '12px' }}>{new Date(b.published_date).toLocaleDateString()} · /{b.slug}</p>
                         </div>
-                        <button onClick={async () => { if (window.confirm('Delete article?')) { await fetch(`${API}/api/admin/blogs/${b.id}`, { method: 'DELETE' }); loadAll(); } }} style={{ background: 'rgba(255,80,80,0.1)', border: '1px solid rgba(255,80,80,0.2)', color: '#FF5050', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', flexShrink: 0 }}>Delete</button>
+                        <button onClick={async () => { if (window.confirm('Delete article?')) { try { await fetch(`${API}/api/admin/blogs/${b.id}`, { method: 'DELETE' }); } catch {} try { const ex = JSON.parse(localStorage.getItem('etromo_admin_blogs') || '[]'); localStorage.setItem('etromo_admin_blogs', JSON.stringify(ex.filter((x: any) => x.id !== b.id))); } catch {} loadAll(); } }} style={{ background: 'rgba(255,80,80,0.1)', border: '1px solid rgba(255,80,80,0.2)', color: '#FF5050', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', flexShrink: 0 }}>Delete</button>
                       </Card>
                     ))}
                   </div>
@@ -1035,16 +1120,32 @@ export function AdminDashboard() {
                         const url = editingProductId ? `${API}/api/admin/products/${editingProductId}` : `${API}/api/admin/products`;
                         const method = editingProductId ? 'PATCH' : 'POST';
 
-                        const res = await fetch(url, {
-                          method,
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify(payload)
-                        });
+                        let saved = false;
+                        try {
+                          const res = await fetch(url, {
+                            method,
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                          });
+                          if (res.ok) saved = true;
+                        } catch {}
 
-                        if (res.ok) {
-                          resetProductForm();
-                          loadAll();
+                        // Fallback: persist in localStorage when API is offline
+                        if (!saved) {
+                          try {
+                            const existing: any[] = JSON.parse(localStorage.getItem('etromo_admin_products') || '[]');
+                            if (editingProductId) {
+                              const idx = existing.findIndex((p: any) => p.id === editingProductId);
+                              if (idx >= 0) existing[idx] = { ...existing[idx], ...payload };
+                              else existing.push({ ...payload, id: editingProductId });
+                            } else {
+                              existing.push({ ...payload, id: Date.now() });
+                            }
+                            localStorage.setItem('etromo_admin_products', JSON.stringify(existing));
+                          } catch {}
                         }
+                        resetProductForm();
+                        loadAll();
                       }}>
                         {/* Name & Category */}
                         <div className="admin-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
@@ -1297,7 +1398,12 @@ export function AdminDashboard() {
                           <button
                             onClick={async () => {
                               if (window.confirm('Delete this product from catalog?')) {
-                                await fetch(`${API}/api/admin/products/${p.id}`, { method: 'DELETE' });
+                                try { await fetch(`${API}/api/admin/products/${p.id}`, { method: 'DELETE' }); } catch {}
+                                // Also remove from localStorage
+                                try {
+                                  const existing = JSON.parse(localStorage.getItem('etromo_admin_products') || '[]');
+                                  localStorage.setItem('etromo_admin_products', JSON.stringify(existing.filter((x: any) => x.id !== p.id)));
+                                } catch {}
                                 loadAll();
                               }
                             }}
@@ -1361,19 +1467,37 @@ export function AdminDashboard() {
                         const url = editingTeamId ? `${API}/api/admin/team/${editingTeamId}` : `${API}/api/admin/team`;
                         const method = editingTeamId ? 'PATCH' : 'POST';
 
-                        const res = await fetch(url, {
-                          method,
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify(payload)
-                        });
 
-                        if (res.ok) {
-                          resetTeamForm();
-                          loadAll();
-                        } else {
-                          const err = await res.json().catch(() => ({}));
-                          alert('Failed to save team member: ' + (err.error || 'Server error'));
+                        let teamSaved = false;
+                        try {
+                          const res = await fetch(url, {
+                            method,
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                          });
+                          if (res.ok) teamSaved = true;
+                          else {
+                            const err = await res.json().catch(() => ({}));
+                            if (res.status !== 404) alert('Failed to save team member: ' + (err.error || 'Server error'));
+                          }
+                        } catch {}
+
+                        // Fallback: persist in localStorage when API is offline
+                        if (!teamSaved) {
+                          try {
+                            const existing: any[] = JSON.parse(localStorage.getItem('etromo_admin_team') || '[]');
+                            if (editingTeamId) {
+                              const idx = existing.findIndex((m: any) => m.id === editingTeamId);
+                              if (idx >= 0) existing[idx] = { ...existing[idx], ...payload, id: editingTeamId };
+                              else existing.push({ ...payload, id: editingTeamId });
+                            } else {
+                              existing.push({ ...payload, id: Date.now() });
+                            }
+                            localStorage.setItem('etromo_admin_team', JSON.stringify(existing));
+                          } catch {}
                         }
+                        resetTeamForm();
+                        loadAll();
                       }}>
                         {/* 1. Basic Identity */}
                         <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', marginBottom: '16px' }}>
@@ -1697,7 +1821,11 @@ export function AdminDashboard() {
                               type="button"
                               onClick={async () => {
                                 if (window.confirm(`Delete profile for ${m.name}?`)) {
-                                  await fetch(`${API}/api/admin/team/${m.id}`, { method: 'DELETE' });
+                                  try { await fetch(`${API}/api/admin/team/${m.id}`, { method: 'DELETE' }); } catch {}
+                                  try {
+                                    const ex = JSON.parse(localStorage.getItem('etromo_admin_team') || '[]');
+                                    localStorage.setItem('etromo_admin_team', JSON.stringify(ex.filter((x: any) => x.id !== m.id)));
+                                  } catch {}
                                   loadAll();
                                 }
                               }}

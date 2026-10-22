@@ -114,6 +114,131 @@
   border-color: rgba(143, 193, 255, 0.4);
 }
 
+/* Newly Launched Beta Button & Badge in Hero */
+.partners-beta-tag-row {
+  margin-bottom: 20px;
+}
+
+.partners-beta-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 18px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, rgba(47, 107, 255, 0.18), rgba(168, 85, 247, 0.12));
+  border: 1px solid rgba(143, 193, 255, 0.35);
+  box-shadow: 0 0 24px rgba(47, 107, 255, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  text-decoration: none;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+}
+
+.partners-beta-pill-btn:hover {
+  transform: translateY(-2px);
+  border-color: rgba(143, 193, 255, 0.6);
+  box-shadow: 0 0 32px rgba(47, 107, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.partners-beta-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 10px #22c55e;
+  animation: partners-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  flex-shrink: 0;
+}
+
+@keyframes partners-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+.partners-beta-badge-label {
+  font-family: var(--mono, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #60a5fa;
+  text-transform: uppercase;
+}
+
+.partners-beta-divider {
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 12px;
+}
+
+.partners-beta-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(244, 246, 249, 0.9);
+  letter-spacing: -0.01em;
+}
+
+.partners-beta-arrow {
+  color: #93c5fd;
+  transition: transform 0.2s ease;
+}
+
+.partners-beta-pill-btn:hover .partners-beta-arrow {
+  transform: translateX(3px);
+}
+
+.partners-btn-beta {
+  background: linear-gradient(135deg, rgba(47, 107, 255, 0.25), rgba(30, 64, 175, 0.3));
+  border: 1px solid rgba(147, 197, 253, 0.35);
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgba(47, 107, 255, 0.2);
+}
+
+.partners-btn-beta:hover {
+  background: linear-gradient(135deg, rgba(47, 107, 255, 0.4), rgba(30, 64, 175, 0.5));
+  border-color: rgba(147, 197, 253, 0.6);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(47, 107, 255, 0.35);
+}
+
+.beta-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 8px #38bdf8;
+}
+
+/* Banner in Partner Apply Page */
+.partner-beta-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  margin-bottom: 24px;
+  border-radius: 12px;
+  background: rgba(47, 107, 255, 0.08);
+  border: 1px solid rgba(47, 107, 255, 0.25);
+}
+
+.partner-beta-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: rgba(47, 107, 255, 0.25);
+  border: 1px solid rgba(147, 197, 253, 0.4);
+  color: #93c5fd;
+  font-family: var(--mono, monospace);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.partner-beta-info {
+  font-size: 12.5px;
+  color: rgba(244, 246, 249, 0.85);
+  line-height: 1.45;
+}
+
 .partners-notice-pill {
   display: inline-flex;
   align-items: center;

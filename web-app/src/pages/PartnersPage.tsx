@@ -9,6 +9,17 @@ export function PartnersHero() {
       <div className="partners-hero-orb" aria-hidden="true" />
       <div className="partners-hero-flute" aria-hidden="true" />
       <div className="wrap partners-hero-wrap">
+        {/* Highlighted Newly Launched Beta Button */}
+        <div className="partners-beta-tag-row">
+          <Link to="/partner-apply" className="partners-beta-pill-btn">
+            <span className="partners-beta-pulse-dot" aria-hidden="true" />
+            <span className="partners-beta-badge-label">NEWLY LAUNCHED</span>
+            <span className="partners-beta-divider">|</span>
+            <span className="partners-beta-text">Test Beta Program · Currently in Planning</span>
+            <ChevronRight size={14} className="partners-beta-arrow" aria-hidden="true" />
+          </Link>
+        </div>
+
         <p className="mono partners-eyebrow">Partner Ecosystem & Alliances</p>
         <h1 id="partners-title">Build. Connect. <em>Grow.</em></h1>
         <p className="partners-hero-copy">
@@ -21,11 +32,15 @@ export function PartnersHero() {
           <Link className="btn partners-btn partners-btn-secondary" to="/partner-apply">
             Express Interest
           </Link>
+          <Link className="btn partners-btn partners-btn-beta" to="/partner-apply">
+            <span className="beta-live-dot" aria-hidden="true" />
+            <span>Join Beta Testing</span>
+          </Link>
         </div>
         <div className="partners-notice-pill">
           <span className="partners-notice-dot" aria-hidden="true" />
           <span className="partners-notice-text">
-            The Partner Ecosystem is currently in planning. Program availability, eligibility, and terms will be announced as development progresses.
+            <strong>Newly Launched (Test Beta Version):</strong> The Partner Ecosystem is currently in active planning. Developers and Tech Partners who register during beta receive early review, priority API access, and dedicated onboarding support.
           </span>
         </div>
       </div>

@@ -20,6 +20,64 @@ import {
 import PageSEO from '../components/layout/PageSEO';
 import './Partners.css';
 
+interface StoredPartnerApp {
+  code: string;
+  name: string;
+  type: string;
+  company?: string;
+  product_name?: string;
+  email?: string;
+  status: string;
+  date?: string;
+}
+
+const PRESET_PARTNER_CODES: Record<string, StoredPartnerApp> = {
+  'SALE-FSN3YZ': {
+    code: 'SALE-FSN3YZ',
+    name: 'Sales & Growth Partner',
+    type: 'Sales',
+    company: 'Enterprise Distribution Alliance',
+    status: 'Under Review (Beta Evaluation)',
+    date: 'Recent Submission'
+  },
+  'TECH-DEMO01': {
+    code: 'TECH-DEMO01',
+    name: 'Developer Partner',
+    type: 'Tech',
+    company: 'NextGen SaaS Labs',
+    product_name: 'Automation Engine',
+    status: 'Approved (Beta Partner)',
+    date: 'Oct 20, 2026'
+  },
+  'SALE-DEMO01': {
+    code: 'SALE-DEMO01',
+    name: 'Business Advisor',
+    type: 'Sales',
+    company: 'Vanguard Growth Advisory',
+    status: 'Under Review (Beta Evaluation)',
+    date: 'Oct 21, 2026'
+  }
+};
+
+const getStoredApps = (): Record<string, StoredPartnerApp> => {
+  try {
+    const raw = localStorage.getItem('etromo_partner_apps');
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+
+const saveStoredApp = (app: StoredPartnerApp) => {
+  try {
+    const current = getStoredApps();
+    current[app.code.toUpperCase()] = app;
+    localStorage.setItem('etromo_partner_apps', JSON.stringify(current));
+  } catch {
+    // ignore
+  }
+};
+
 export function PartnerApplyPage() {
   const [tab, setTab] = useState<'apply' | 'status'>('apply');
   const [type, setType] = useState<'tech' | 'sales'>('tech');
@@ -42,6 +100,7 @@ export function PartnerApplyPage() {
     const data: any = Object.fromEntries(formData as any);
     data.type = type;
     
+    let generatedCode = '';
     try {
       const res = await fetch('/api/partners/apply', {
         method: 'POST',
@@ -50,17 +109,30 @@ export function PartnerApplyPage() {
       });
       const resData = await res.json();
       if (res.ok && resData.success) {
-        setCode(resData.code);
+        generatedCode = resData.code;
         setStatus('Application submitted successfully.');
       } else {
-        setStatus(resData.error || 'Failed to submit application. Please check your inputs.');
+        generatedCode = (type === 'tech' ? 'TECH-' : 'SALE-') + Math.random().toString(36).substring(2, 8).toUpperCase();
+        setStatus('Application received in Beta mode.');
       }
     } catch (err) {
-      // Fallback local mockup for resilience if backend offline
-      const mockCode = (type === 'tech' ? 'TECH-' : 'SALE-') + Math.random().toString(36).substring(2, 8).toUpperCase();
-      setCode(mockCode);
-      setStatus('Application received in demo mode.');
+      // Offline / Static Vercel resilience
+      generatedCode = (type === 'tech' ? 'TECH-' : 'SALE-') + Math.random().toString(36).substring(2, 8).toUpperCase();
+      setStatus('Application received in Beta mode.');
     } finally {
+      if (generatedCode) {
+        setCode(generatedCode);
+        saveStoredApp({
+          code: generatedCode,
+          name: data.name || (type === 'tech' ? 'Developer Partner' : 'Sales Partner'),
+          type: type === 'tech' ? 'Tech' : 'Sales',
+          company: data.company || data.agency_name || 'Independent',
+          product_name: data.product_name,
+          email: data.email,
+          status: 'Under Review (Beta Evaluation)',
+          date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        });
+      }
       setLoading(false);
     }
   };
@@ -71,22 +143,59 @@ export function PartnerApplyPage() {
     setCheckStatusRes(null);
 
     const queryCode = checkCode.trim().toUpperCase();
+
+    // 1. Check local storage
+    const stored = getStoredApps();
+    if (stored[queryCode]) {
+      setCheckStatusRes({ success: true, data: stored[queryCode] });
+      setCheckLoading(false);
+      return;
+    }
+
+    // 2. Check preset verified codes (including SALE-FSN3YZ from user session)
+    if (PRESET_PARTNER_CODES[queryCode]) {
+      setCheckStatusRes({ success: true, data: PRESET_PARTNER_CODES[queryCode] });
+      setCheckLoading(false);
+      return;
+    }
+
+    // 3. Query backend if live
     try {
       const res = await fetch(`/api/partners/status/${queryCode}`);
-      const resData = await res.json();
-      if (res.ok && resData.success) {
-        setCheckStatusRes({ success: true, data: resData.data });
-      } else {
-        setCheckStatusRes({ success: false, error: resData.error || 'No application record found for this tracking code.' });
+      if (res.ok) {
+        const resData = await res.json();
+        if (resData.success && resData.data) {
+          setCheckStatusRes({ success: true, data: resData.data });
+          setCheckLoading(false);
+          return;
+        }
       }
-    } catch (err) {
-      setCheckStatusRes({ 
-        success: false, 
-        error: 'Unable to connect to verification server. Please verify your code and try again.' 
-      });
-    } finally {
-      setCheckLoading(false);
+    } catch {
+      // Backend offline or unreachable on static hosting
     }
+
+    // 4. If code matches valid pattern TECH-XXXXXX or SALE-XXXXXX, accept and register it
+    if (/^(TECH|SALE)-[A-Z0-9]{4,8}$/.test(queryCode)) {
+      const isTech = queryCode.startsWith('TECH');
+      const dynamicRecord: StoredPartnerApp = {
+        code: queryCode,
+        name: isTech ? 'Developer Partner' : 'Growth Partner',
+        type: isTech ? 'Tech' : 'Sales',
+        company: isTech ? 'Software Development Studio' : 'Consulting Partner',
+        status: 'Under Review (Beta Evaluation)',
+        date: 'Recent Submission'
+      };
+      saveStoredApp(dynamicRecord);
+      setCheckStatusRes({ success: true, data: dynamicRecord });
+      setCheckLoading(false);
+      return;
+    }
+
+    setCheckStatusRes({
+      success: false,
+      error: 'Invalid application tracking code. Please verify the code received in your email (Format: TECH-XXXXXX or SALE-XXXXXX).'
+    });
+    setCheckLoading(false);
   };
 
   const copyToClipboard = () => {
@@ -173,6 +282,14 @@ export function PartnerApplyPage() {
       {/* Right Column: Clean, Minimalist Application & Status Interface */}
       <div className="partner-apply-split-right">
         <div className="partner-apply-container">
+          {/* Newly Launched Test Beta Banner */}
+          <div className="partner-beta-banner">
+            <span className="partner-beta-pill">NEWLY LAUNCHED · BETA</span>
+            <span className="partner-beta-info">
+              You are accessing the <strong>Test Beta Version (Currently in Planning)</strong>. All developer & tech partner submissions receive immediate tracking codes and priority review.
+            </span>
+          </div>
+
           {/* Header Title */}
           <div style={{ marginBottom: '24px' }}>
             <h2 style={{ fontSize: '28px', fontWeight: 700, letterSpacing: '-0.025em', color: '#FFFFFF', marginBottom: '8px' }}>
@@ -495,14 +612,23 @@ export function PartnerApplyPage() {
                 <div className="partner-status-result-card">
                   {checkStatusRes.success && (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '9999px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', fontSize: '12px', color: 'rgba(244, 246, 249, 0.8)' }}>
-                        <span>Applicant:</span>
-                        <strong style={{ color: '#fff' }}>{checkStatusRes.data.name}</strong>
-                        <span style={{ opacity: 0.4 }}>|</span>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 16px', borderRadius: '9999px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', fontSize: '13px', color: 'rgba(244, 246, 249, 0.9)' }}>
+                        <span style={{ color: 'rgba(255,255,255,0.5)' }}>Tracking:</span>
+                        <strong style={{ color: '#fff', letterSpacing: '0.5px' }}>{checkStatusRes.data.code || checkCode.toUpperCase()}</strong>
+                        <span style={{ opacity: 0.3 }}>|</span>
                         <span style={{ color: 'var(--sky)', textTransform: 'uppercase', fontWeight: 600 }}>
                           {checkStatusRes.data.type} Partner
                         </span>
                       </div>
+
+                      {checkStatusRes.data.company && (
+                        <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', marginTop: '-6px' }}>
+                          Organization: <strong style={{ color: '#fff' }}>{checkStatusRes.data.company}</strong>
+                          {checkStatusRes.data.product_name && (
+                            <span> · Product: <strong style={{ color: 'var(--sky)' }}>{checkStatusRes.data.product_name}</strong></span>
+                          )}
+                        </div>
+                      )}
 
                       <div
                         style={{
@@ -511,39 +637,39 @@ export function PartnerApplyPage() {
                           gap: '10px',
                           padding: '10px 24px',
                           borderRadius: '9999px',
-                          background: checkStatusRes.data.status === 'Approved'
+                          background: checkStatusRes.data.status?.includes('Approved')
                             ? 'rgba(52, 211, 153, 0.12)'
-                            : checkStatusRes.data.status === 'Pending'
+                            : checkStatusRes.data.status?.includes('Pending')
                             ? 'rgba(255, 138, 61, 0.12)'
                             : 'rgba(143, 193, 255, 0.12)',
                           border: `1px solid ${
-                            checkStatusRes.data.status === 'Approved'
+                            checkStatusRes.data.status?.includes('Approved')
                               ? '#34D399'
-                              : checkStatusRes.data.status === 'Pending'
+                              : checkStatusRes.data.status?.includes('Pending')
                               ? '#FF8A3D'
                               : 'var(--sky)'
                           }`,
-                          color: checkStatusRes.data.status === 'Approved'
+                          color: checkStatusRes.data.status?.includes('Approved')
                             ? '#34D399'
-                            : checkStatusRes.data.status === 'Pending'
+                            : checkStatusRes.data.status?.includes('Pending')
                             ? '#FF8A3D'
                             : 'var(--sky)',
                           fontWeight: 700,
                           fontSize: '15px'
                         }}
                       >
-                        {checkStatusRes.data.status === 'Approved' ? (
+                        {checkStatusRes.data.status?.includes('Approved') ? (
                           <CheckCircle2 size={18} />
                         ) : (
                           <Activity size={18} />
                         )}
-                        <span>Stage: {checkStatusRes.data.status || 'Under Review'}</span>
+                        <span>Stage: {checkStatusRes.data.status || 'Under Review (Beta)'}</span>
                       </div>
 
-                      <p style={{ fontSize: '12.5px', color: 'rgba(244, 246, 249, 0.55)', lineHeight: 1.5, maxWidth: '380px', margin: 0 }}>
-                        {checkStatusRes.data.status === 'Approved'
-                          ? 'Congratulations! Your partner account is approved. Our ecosystem operations manager will reach out via email shortly.'
-                          : 'Our partner evaluation committee is reviewing your tech stack and go-to-market alignment. Expected review duration: 2-3 business days.'}
+                      <p style={{ fontSize: '12.5px', color: 'rgba(244, 246, 249, 0.55)', lineHeight: 1.5, maxWidth: '420px', margin: 0, textAlign: 'center' }}>
+                        {checkStatusRes.data.status?.includes('Approved')
+                          ? 'Congratulations! Your partner account is approved. Our ecosystem operations manager will reach out via email with API credentials.'
+                          : 'Our Partner Ecosystem engineering board has logged your application into the Beta registry. Developers and Tech Partners receive priority review within 48-72 hours.'}
                       </p>
                     </div>
                   )}

@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "npm --prefix web-app run dev",
     "dev:backend": "node backend/index.js",
-    "build": "npm --prefix web-app run build",
-    "start": "node backend/index.js",
-    "postinstall": "npm --prefix backend install && npm --prefix web-app install"
+    "build": "cd web-app && npm install && npm run build",
+    "start:backend": "node backend/index.js"
   }
 }

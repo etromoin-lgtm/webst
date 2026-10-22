@@ -1,15 +1,143 @@
-import { useState, useEffect, useRef } from 'react';
+"use client";
+
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ChevronDown, ShieldCheck, BookOpen, TrendingUp } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Layers,
+  Zap,
+  Sparkles,
+  ShieldCheck,
+  BookOpen,
+  Code2,
+  ChevronDown,
+  ArrowRight,
+  ExternalLink,
+  Compass,
+} from 'lucide-react';
 import './Navbar.css';
+
+interface NavDropdownItem {
+  title: string;
+  desc: string;
+  icon: React.ElementType;
+  tag?: string;
+  href: string;
+}
+
+interface NavItem {
+  id: string;
+  label: string;
+  href?: string;
+  badge?: string;
+  hasDropdown: boolean;
+  items?: NavDropdownItem[];
+}
+
+const websiteNavItems: NavItem[] = [
+  {
+    id: 'products',
+    label: 'Products',
+    href: '/products',
+    badge: '3 CRM',
+    hasDropdown: true,
+    items: [
+      {
+        title: 'Real Estate CRM',
+        desc: 'Lead distribution, site-visit dispatch & live pipeline tracking.',
+        icon: Layers,
+        tag: 'Flagship',
+        href: '/products/real-estate-crm',
+      },
+      {
+        title: 'WhatsApp AI CRM',
+        desc: 'Conversational pipeline engine & multi-agent automation.',
+        icon: Zap,
+        tag: 'AI Powered',
+        href: '/products/whatsapp-crm',
+      },
+      {
+        title: 'Cafe & Retail OS',
+        desc: 'Order routing, kitchen display & real-time inventory.',
+        icon: Sparkles,
+        href: '/products/cafe-crm',
+      },
+    ],
+  },
+  {
+    id: 'services',
+    label: 'Services',
+    href: '/services',
+    hasDropdown: false,
+  },
+  {
+    id: 'insights',
+    label: 'Insights',
+    hasDropdown: true,
+    items: [
+      {
+        title: 'Case Studies',
+        desc: 'Real enterprise challenges. Measurable business results.',
+        icon: ShieldCheck,
+        tag: 'Proven ROI',
+        href: '/case-studies',
+      },
+      {
+        title: 'Resources Hub',
+        desc: 'Playbooks, technical architectures & whitepapers.',
+        icon: BookOpen,
+        href: '/resources',
+      },
+      {
+        title: 'Engineering Blog',
+        desc: 'Deep dives into full-stack speed, scale & resilience.',
+        icon: Code2,
+        href: '/blog',
+      },
+    ],
+  },
+  {
+    id: 'partners',
+    label: 'Partners',
+    href: '/partners',
+    hasDropdown: false,
+  },
+  {
+    id: 'about',
+    label: 'About',
+    href: '/about',
+    hasDropdown: false,
+  },
+];
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
+  const [activeTab, setActiveTab] = useState<string | null>(null);
+  const [hoveredTab, setHoveredTab] = useState<string | null>(null);
+  const [isLocked, setIsLocked] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [insightsOpen, setInsightsOpen] = useState(false);
-  const [mobileInsightsOpen, setMobileInsightsOpen] = useState(true);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [mobileInsightsOpen, setMobileInsightsOpen] = useState(false);
+  const [mobileProductsOpen, setMobileProductsOpen] = useState(false);
+
+  const navContainerRef = useRef<HTMLDivElement>(null);
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const location = useLocation();
+
+  const cancelCloseTimeout = () => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+  };
+
+  const scheduleCloseTimeout = () => {
+    if (isLocked) return;
+    cancelCloseTimeout();
+    closeTimeoutRef.current = setTimeout(() => {
+      setActiveTab(null);
+      setHoveredTab(null);
+    }, 220); // 220ms grace window for downward cursor drag
+  };
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -17,32 +145,43 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Scroll to top and close menu on route change
+  // Close everything on route change
   useEffect(() => {
     window.scrollTo(0, 0);
     setMenuOpen(false);
-    setInsightsOpen(false);
+    setActiveTab(null);
+    setHoveredTab(null);
+    setIsLocked(false);
+    cancelCloseTimeout();
   }, [location.pathname]);
 
   // Click outside listener for dropdown
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setInsightsOpen(false);
+      if (navContainerRef.current && !navContainerRef.current.contains(e.target as Node)) {
+        cancelCloseTimeout();
+        setActiveTab(null);
+        setHoveredTab(null);
+        setIsLocked(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      cancelCloseTimeout();
+    };
   }, []);
 
-  // Prevent body scroll when menu open
+  // Prevent body scroll when mobile menu is open
   useEffect(() => {
     if (menuOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
-    return () => { document.body.style.overflow = ''; };
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, [menuOpen]);
 
   if (
@@ -52,287 +191,401 @@ export function Navbar() {
     return null;
   }
 
-  const isInsightsActive =
-    location.pathname.startsWith('/case-studies') ||
-    location.pathname.startsWith('/resources') ||
-    location.pathname.startsWith('/blog');
+  const handleLinkSelect = () => {
+    cancelCloseTimeout();
+    setActiveTab(null);
+    setHoveredTab(null);
+    setIsLocked(false);
+  };
+
+  const activeItem = websiteNavItems.find((item) => item.id === activeTab);
 
   return (
     <>
-      <nav id="nav" className={scrolled ? 's' : ''}>
-        <div className="wrap">
-          <Link className="logo brand-logo-lockup" to="/" aria-label="Etromo Home">
-            <img src="/logo.png" alt="Etromo Emblem" className="brand-logo-img" />
-            <span className="brand-logo-text">Etromo<span className="brand-logo-dot" /></span>
-          </Link>
-          <div className="links">
-            <Link to="/products">Products</Link>
-            <Link to="/services">Services</Link>
-            <Link to="/partners">Partners</Link>
-
-            {/* Insights Dropdown */}
-            <div
-              ref={dropdownRef}
-              className="nav-dropdown-wrapper"
-              style={{ position: 'relative' }}
-              onMouseEnter={() => setInsightsOpen(true)}
-              onMouseLeave={() => setInsightsOpen(false)}
+      {/* Outer Floating Bar Header */}
+      <header
+        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
+          scrolled ? 'py-2.5' : 'py-4'
+        }`}
+      >
+        <div className="max-w-[1240px] mx-auto px-6 md:px-8">
+          <div
+            ref={navContainerRef}
+            className="relative flex items-center justify-between gap-6 min-h-[44px]"
+          >
+            {/* Left: Brand Logo Lockup */}
+            <Link
+              to="/"
+              onClick={handleLinkSelect}
+              className="brand-logo-lockup flex items-center gap-2.5 transition-transform hover:scale-[1.02] shrink-0"
+              aria-label="Etromo Home"
             >
-              <button
-                type="button"
-                onClick={() => setInsightsOpen(o => !o)}
-                className={`nav-dropdown-trigger ${isInsightsActive ? 'active' : ''}`}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: isInsightsActive ? 'var(--h, #FFFFFF)' : 'inherit',
-                  fontFamily: 'inherit',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '8px 0',
-                  transition: 'color 0.2s ease'
-                }}
-                aria-expanded={insightsOpen}
-                aria-haspopup="true"
-              >
-                Insights
-                <ChevronDown
-                  size={14}
-                  style={{
-                    transition: 'transform 0.25s ease',
-                    transform: insightsOpen ? 'rotate(180deg)' : 'none',
-                    opacity: 0.7
-                  }}
-                />
-              </button>
+              <img
+                src="/logo.png"
+                alt="Etromo"
+                className="brand-logo-img h-8 md:h-9 w-auto object-contain"
+              />
+              <span className="brand-logo-text text-lg md:text-xl font-bold tracking-tight text-white flex items-center">
+                Etromo<span className="brand-logo-dot" />
+              </span>
+            </Link>
 
-              {/* Dropdown Menu */}
-              {insightsOpen && (
-                <div
-                  className="nav-dropdown-menu"
-                  style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 4px)',
-                    left: '-20px',
-                    width: '280px',
-                    background: 'rgba(9, 13, 24, 0.95)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    borderRadius: '16px',
-                    padding: '10px',
-                    boxShadow: '0 20px 48px rgba(0, 0, 0, 0.6), 0 0 20px rgba(143, 193, 255, 0.08)',
-                    backdropFilter: 'blur(24px)',
-                    WebkitBackdropFilter: 'blur(24px)',
-                    zIndex: 100,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px',
-                    animation: 'fadeInSlide 0.2s ease-out'
-                  }}
-                >
-                  <Link
-                    to="/case-studies"
-                    onClick={() => setInsightsOpen(false)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '12px',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      color: '#FFFFFF',
-                      textDecoration: 'none',
-                      transition: 'background 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                  >
-                    <div
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '8px',
-                        background: 'rgba(16, 185, 129, 0.12)',
-                        color: '#34D399',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0
-                      }}
-                    >
-                      <ShieldCheck size={16} />
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: '13px', lineHeight: 1.3 }}>Case Studies</div>
-                      <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.55)', marginTop: '2px' }}>
-                        Real Challenges. Measurable Results.
-                      </div>
-                    </div>
-                  </Link>
+            {/* Center: Desktop Menu (right-aligned flow, not dead-centered) */}
+            <div
+              className="hidden lg:flex items-center gap-6 ml-auto"
+              onMouseEnter={cancelCloseTimeout}
+              onMouseLeave={scheduleCloseTimeout}
+            >
+              <nav className="relative z-20 flex items-center gap-1 rounded-full border border-neutral-700/60 bg-neutral-950/80 p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-2xl transition-all">
+                {websiteNavItems.map((item) => {
+                  const isOpen = activeTab === item.id;
+                  const isHovered = hoveredTab === item.id;
+                  const isRouteActive =
+                    item.href &&
+                    (item.href === '/'
+                      ? location.pathname === '/'
+                      : location.pathname.startsWith(item.href));
 
-                  <Link
-                    to="/resources"
-                    onClick={() => setInsightsOpen(false)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '12px',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      color: '#FFFFFF',
-                      textDecoration: 'none',
-                      transition: 'background 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                  >
-                    <div
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '8px',
-                        background: 'rgba(143, 193, 255, 0.12)',
-                        color: 'var(--sky, #8FC1FF)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0
-                      }}
-                    >
-                      <BookOpen size={16} />
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: '13px', lineHeight: 1.3 }}>Resources</div>
-                      <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.55)', marginTop: '2px' }}>
-                        Playbooks, Architecture & Specs
-                      </div>
-                    </div>
-                  </Link>
+                  const content = (
+                    <>
+                      {/* Dynamic Sliding Background Pill */}
+                      {isHovered && (
+                        <motion.div
+                          layoutId="nav-island-hover-pill"
+                          className="absolute inset-0 z-[-1] rounded-full bg-neutral-800/80"
+                          transition={{
+                            type: 'spring',
+                            stiffness: 450,
+                            damping: 35,
+                          }}
+                        />
+                      )}
 
-                  <Link
-                    to="/blog"
-                    onClick={() => setInsightsOpen(false)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '12px',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      color: '#FFFFFF',
-                      textDecoration: 'none',
-                      transition: 'background 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                  >
-                    <div
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '8px',
-                        background: 'rgba(255, 154, 158, 0.12)',
-                        color: '#FF9A9E',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0
+                      <span className="relative z-10">{item.label}</span>
+
+                      {item.badge && (
+                        <span className="relative z-10 rounded-md border border-neutral-700/60 bg-neutral-900 px-1 py-0.5 text-[9px] font-mono font-medium text-neutral-300">
+                          {item.badge}
+                        </span>
+                      )}
+
+                      {item.hasDropdown && (
+                        <ChevronDown
+                          className={`relative z-10 h-3.5 w-3.5 transition-transform duration-200 ${
+                            isOpen ? 'rotate-180 text-white' : 'text-neutral-400'
+                          }`}
+                        />
+                      )}
+                    </>
+                  );
+
+                  const itemClasses = `relative z-10 flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium tracking-tight transition-colors duration-200 cursor-pointer ${
+                    isOpen || isHovered || isRouteActive
+                      ? 'text-white'
+                      : 'text-neutral-400 hover:text-neutral-200'
+                  }`;
+
+                  if (item.hasDropdown) {
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onMouseEnter={() => {
+                          cancelCloseTimeout();
+                          setHoveredTab(item.id);
+                          setActiveTab(item.id);
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          cancelCloseTimeout();
+                          if (activeTab === item.id && isLocked) {
+                            setIsLocked(false);
+                            setActiveTab(null);
+                            setHoveredTab(null);
+                          } else {
+                            setActiveTab(item.id);
+                            setHoveredTab(item.id);
+                            setIsLocked(true);
+                          }
+                        }}
+                        className={itemClasses}
+                        aria-expanded={isOpen}
+                        aria-haspopup="true"
+                      >
+                        {content}
+                      </button>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={item.id}
+                      to={item.href || '#'}
+                      onMouseEnter={() => {
+                        cancelCloseTimeout();
+                        setHoveredTab(item.id);
+                        if (!isLocked) {
+                          setActiveTab(null);
+                        }
                       }}
+                      onClick={handleLinkSelect}
+                      className={itemClasses}
                     >
-                      <TrendingUp size={16} />
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: '13px', lineHeight: 1.3 }}>Blog</div>
-                      <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.55)', marginTop: '2px' }}>
-                        Engineering Insights & Updates
-                      </div>
-                    </div>
-                  </Link>
-                </div>
-              )}
+                      {content}
+                    </Link>
+                  );
+                })}
+              </nav>
+
+              {/* Clean Minimalist Dropdown Panel */}
+              <AnimatePresence>
+                {activeItem?.hasDropdown && activeItem.items && (
+                  <div
+                    className="absolute left-1/2 -translate-x-1/2 top-full pt-2.5 z-50 pointer-events-auto"
+                    onMouseEnter={cancelCloseTimeout}
+                    onMouseLeave={scheduleCloseTimeout}
+                  >
+                    {/* Invisible hover bridge spanning between navbar and panel */}
+                    <div className="absolute -top-3 left-0 right-0 h-5 bg-transparent" />
+
+                    <motion.div
+                      layoutId="nav-dropdown-surface"
+                      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                      transition={{
+                        type: 'spring',
+                        stiffness: 420,
+                        damping: 32,
+                        mass: 0.6,
+                      }}
+                      className="overflow-hidden rounded-2xl border border-neutral-800/90 bg-neutral-950/95 shadow-[0_24px_60px_-15px_rgba(0,0,0,0.85)] backdrop-blur-2xl ring-1 ring-white/[0.06]"
+                    >
+                      {/* Clean Item List Frame */}
+                      <motion.div
+                        layout
+                        transition={{
+                          type: 'spring',
+                          stiffness: 420,
+                          damping: 32,
+                        }}
+                        className="w-[360px] p-2 space-y-1"
+                      >
+                        {activeItem.items.map((subItem) => {
+                          const Icon = subItem.icon;
+                          return (
+                            <Link
+                              key={subItem.title}
+                              to={subItem.href}
+                              onClick={handleLinkSelect}
+                              className="group flex items-start gap-3 rounded-xl p-2.5 transition-all duration-150 hover:bg-neutral-900/90"
+                            >
+                              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-neutral-800 bg-neutral-900/80 text-sky-400 transition-colors group-hover:border-sky-500/40 group-hover:bg-neutral-800 group-hover:text-white">
+                                <Icon className="h-4.5 w-4.5" />
+                              </div>
+
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-xs font-semibold text-neutral-100 group-hover:text-white">
+                                    {subItem.title}
+                                  </span>
+                                  {subItem.tag && (
+                                    <span className="rounded bg-sky-500/10 px-1.5 py-0.5 text-[9px] font-medium text-sky-400 border border-sky-500/20">
+                                      {subItem.tag}
+                                    </span>
+                                  )}
+                                  <ArrowRight className="h-3 w-3 opacity-0 -translate-x-1 transition-all text-neutral-400 group-hover:translate-x-0 group-hover:opacity-100" />
+                                </div>
+                                <p className="mt-0.5 text-[11px] leading-relaxed text-neutral-400 line-clamp-2">
+                                  {subItem.desc}
+                                </p>
+                              </div>
+                            </Link>
+                          );
+                        })}
+                      </motion.div>
+                    </motion.div>
+                  </div>
+                )}
+              </AnimatePresence>
             </div>
 
-            <Link to="/about">About</Link>
-            <Link
-              to="/portal"
-              style={{
-                fontSize: '13px',
-                fontWeight: 600,
-                color: 'var(--sky, #8FC1FF)',
-                padding: '6px 12px',
-                borderRadius: '8px',
-                background: 'rgba(143, 193, 255, 0.08)',
-                border: '1px solid rgba(143, 193, 255, 0.2)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
-              Client Portal
-            </Link>
-            <Link className="btn g" to="/contact">Talk to us</Link>
+            {/* Right: Actions (Client Portal & Contact CTA) */}
+            <div className="flex items-center gap-3">
+              <Link
+                to="/portal"
+                onClick={handleLinkSelect}
+                className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-sky-400/30 bg-sky-500/10 px-3.5 py-1.5 text-xs font-semibold text-sky-300 transition-all hover:bg-sky-500/20 hover:border-sky-400/50 hover:shadow-[0_0_15px_rgba(56,189,248,0.2)]"
+              >
+                <span>Client Portal</span>
+                <span className="flex h-1.5 w-1.5 rounded-full bg-sky-400 animate-pulse" />
+              </Link>
+
+              <Link
+                to="/contact"
+                onClick={handleLinkSelect}
+                className="btn g hidden sm:inline-flex items-center justify-center rounded-full px-4 py-1.5 text-xs font-medium tracking-tight"
+              >
+                Talk to us
+              </Link>
+
+              {/* Hamburger Button for Mobile */}
+              <button
+                className={`hamburger lg:hidden ${menuOpen ? 'open' : ''}`}
+                onClick={() => setMenuOpen((o) => !o)}
+                aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+                aria-expanded={menuOpen}
+              >
+                <span />
+                <span />
+                <span />
+              </button>
+            </div>
           </div>
-          <button
-            className={`hamburger${menuOpen ? ' open' : ''}`}
-            onClick={() => setMenuOpen(o => !o)}
-            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-            aria-expanded={menuOpen}
-          >
-            <span />
-            <span />
-            <span />
-          </button>
         </div>
-      </nav>
-      <nav className={`mobile-nav${menuOpen ? ' open' : ''}`} aria-hidden={!menuOpen}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-          <Link className="brand-logo-lockup" to="/" onClick={() => setMenuOpen(false)}>
-            <img src="/logo.png" alt="Etromo" className="brand-logo-img" style={{ height: '30px' }} />
-            <span className="brand-logo-text" style={{ fontSize: '19px' }}>Etromo<span className="brand-logo-dot" /></span>
+      </header>
+
+      {/* Mobile Drawer Navigation */}
+      <nav className={`mobile-nav ${menuOpen ? 'open' : ''}`} aria-hidden={!menuOpen}>
+        <div className="flex items-center justify-between w-full mb-4 pb-4 border-b border-neutral-800">
+          <Link
+            className="brand-logo-lockup"
+            to="/"
+            onClick={() => setMenuOpen(false)}
+          >
+            <img src="/logo.png" alt="Etromo" className="brand-logo-img h-7" />
+            <span className="brand-logo-text text-lg">
+              Etromo<span className="brand-logo-dot" />
+            </span>
           </Link>
           <button
             onClick={() => setMenuOpen(false)}
-            style={{ background: 'none', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer', padding: '6px' }}
+            className="text-neutral-400 hover:text-white p-2 text-xl"
             aria-label="Close menu"
           >
             ✕
           </button>
         </div>
-        <Link to="/">Home</Link>
-        <Link to="/products">Products</Link>
-        <Link to="/services">Services</Link>
-        <Link to="/partners">Partners</Link>
 
-        {/* Mobile Insights Group */}
-        <div style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', margin: '4px 0' }}>
+        <Link to="/" onClick={() => setMenuOpen(false)}>
+          Home
+        </Link>
+
+        {/* Mobile Products Accordion */}
+        <div className="p-2 bg-neutral-900/40 rounded-xl my-1 border border-neutral-800/60">
           <div
-            onClick={() => setMobileInsightsOpen(o => !o)}
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '8px 4px', color: '#FFFFFF', fontWeight: 600 }}
+            onClick={() => setMobileProductsOpen((o) => !o)}
+            className="flex justify-between items-center cursor-pointer p-2 text-white font-semibold text-base"
           >
-            <span>Insights</span>
-            <ChevronDown size={16} style={{ transform: mobileInsightsOpen ? 'rotate(180deg)' : 'none', transition: '0.2s' }} />
+            <span className="flex items-center gap-2">
+              <Layers className="w-4 h-4 text-sky-400" /> Products
+            </span>
+            <ChevronDown
+              size={16}
+              className={`transition-transform ${mobileProductsOpen ? 'rotate-180' : ''}`}
+            />
           </div>
-          {mobileInsightsOpen && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingLeft: '12px', marginTop: '6px' }}>
-              <Link to="/case-studies" style={{ fontSize: '15px', color: 'rgba(255,255,255,0.85)', padding: '8px 0' }}>
-                ↳ Case Studies
+          {mobileProductsOpen && (
+            <div className="flex flex-col gap-1 pl-4 mt-1 border-l border-neutral-800 ml-2">
+              <Link
+                to="/products"
+                onClick={() => setMenuOpen(false)}
+                className="text-sm text-neutral-300 py-1.5"
+              >
+                All Products
               </Link>
-              <Link to="/resources" style={{ fontSize: '15px', color: 'rgba(255,255,255,0.85)', padding: '8px 0' }}>
-                ↳ Resources
+              <Link
+                to="/products/real-estate-crm"
+                onClick={() => setMenuOpen(false)}
+                className="text-sm text-neutral-300 py-1.5"
+              >
+                ↳ Real Estate CRM
               </Link>
-              <Link to="/blog" style={{ fontSize: '15px', color: 'rgba(255,255,255,0.85)', padding: '8px 0' }}>
-                ↳ Blog Articles
+              <Link
+                to="/products/whatsapp-crm"
+                onClick={() => setMenuOpen(false)}
+                className="text-sm text-neutral-300 py-1.5"
+              >
+                ↳ WhatsApp AI CRM
+              </Link>
+              <Link
+                to="/products/cafe-crm"
+                onClick={() => setMenuOpen(false)}
+                className="text-sm text-neutral-300 py-1.5"
+              >
+                ↳ Cafe & Retail OS
               </Link>
             </div>
           )}
         </div>
 
-        <Link to="/about">About</Link>
-        <Link to="/portal" style={{ color: 'var(--sky, #8FC1FF)', fontWeight: 600 }}>
-          Client Portal ↗
+        <Link to="/services" onClick={() => setMenuOpen(false)}>
+          Services
         </Link>
-        <Link to="/contact" className="mobile-cta">Talk to us →</Link>
+
+        {/* Mobile Insights Accordion */}
+        <div className="p-2 bg-neutral-900/40 rounded-xl my-1 border border-neutral-800/60">
+          <div
+            onClick={() => setMobileInsightsOpen((o) => !o)}
+            className="flex justify-between items-center cursor-pointer p-2 text-white font-semibold text-base"
+          >
+            <span className="flex items-center gap-2">
+              <Compass className="w-4 h-4 text-emerald-400" /> Insights
+            </span>
+            <ChevronDown
+              size={16}
+              className={`transition-transform ${mobileInsightsOpen ? 'rotate-180' : ''}`}
+            />
+          </div>
+          {mobileInsightsOpen && (
+            <div className="flex flex-col gap-1 pl-4 mt-1 border-l border-neutral-800 ml-2">
+              <Link
+                to="/case-studies"
+                onClick={() => setMenuOpen(false)}
+                className="text-sm text-neutral-300 py-1.5"
+              >
+                ↳ Case Studies
+              </Link>
+              <Link
+                to="/resources"
+                onClick={() => setMenuOpen(false)}
+                className="text-sm text-neutral-300 py-1.5"
+              >
+                ↳ Resources Hub
+              </Link>
+              <Link
+                to="/blog"
+                onClick={() => setMenuOpen(false)}
+                className="text-sm text-neutral-300 py-1.5"
+              >
+                ↳ Engineering Blog
+              </Link>
+            </div>
+          )}
+        </div>
+
+        <Link to="/partners" onClick={() => setMenuOpen(false)}>
+          Partners
+        </Link>
+        <Link to="/about" onClick={() => setMenuOpen(false)}>
+          About
+        </Link>
+        <Link
+          to="/portal"
+          onClick={() => setMenuOpen(false)}
+          className="text-sky-400 font-semibold flex items-center justify-between"
+        >
+          <span>Client Portal</span>
+          <ExternalLink className="w-4 h-4" />
+        </Link>
+
+        <Link
+          to="/contact"
+          onClick={() => setMenuOpen(false)}
+          className="mobile-cta text-center mt-3"
+        >
+          Talk to us →
+        </Link>
       </nav>
     </>
   );

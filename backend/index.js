@@ -53,7 +53,7 @@ app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().
 const distDir = path.resolve(__dirname, '../web-app/dist');
 if (fs.existsSync(distDir)) {
   app.use(express.static(distDir));
-  app.get('*', (req, res) => {
+  app.use((req, res) => {
     // Avoid capturing api routes with 404s
     if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
       return res.status(404).json({ error: 'Endpoint not found' });

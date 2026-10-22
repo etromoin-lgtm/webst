@@ -3,7 +3,11 @@ const { Pool } = require('pg');
 const path = require('path');
 const fs = require('fs');
 
-const usePostgres = Boolean(process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('postgres'));
+const usePostgres = Boolean(
+  process.env.DATABASE_URL &&
+  process.env.DATABASE_URL.startsWith('postgres') &&
+  !process.env.DATABASE_URL.includes('username:password')
+);
 
 let pgPool = null;
 let sqliteDb = null;
@@ -32,6 +36,7 @@ if (usePostgres) {
 
 function initDB() {
   if (usePostgres) return; // Supabase tables created via migration / schema
+  const db = sqliteDb;
   sqliteDb.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS partner_applications (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   Layers,
   Activity,
@@ -30,8 +30,17 @@ export function AdminDashboard() {
   const [isLocked, setIsLocked] = useState(false);
   const [lockoutSeconds, setLockoutSeconds] = useState(0);
   const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null);
-  const [tab, setTab] = useState('overview');
+  const location = useLocation();
+  const searchTab = new URLSearchParams(location.search).get('tab');
+  const [tab, setTab] = useState(searchTab || 'overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const qTab = new URLSearchParams(location.search).get('tab');
+    if (qTab) {
+      setTab(qTab);
+    }
+  }, [location.search]);
 
   // Data state
   const [stats, setStats] = useState<any>(null);

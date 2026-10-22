@@ -119,7 +119,7 @@ export function Navbar() {
   const [mobileInsightsOpen, setMobileInsightsOpen] = useState(false);
   const [mobileProductsOpen, setMobileProductsOpen] = useState(false);
 
-  const navContainerRef = useRef<HTMLDivElement>(null);
+  const navIslandRef = useRef<HTMLDivElement>(null);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const location = useLocation();
 
@@ -136,7 +136,7 @@ export function Navbar() {
     closeTimeoutRef.current = setTimeout(() => {
       setActiveTab(null);
       setHoveredTab(null);
-    }, 220); // 220ms grace window for downward cursor drag
+    }, 250);
   };
 
   useEffect(() => {
@@ -145,7 +145,6 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Close everything on route change
   useEffect(() => {
     window.scrollTo(0, 0);
     setMenuOpen(false);
@@ -155,10 +154,9 @@ export function Navbar() {
     cancelCloseTimeout();
   }, [location.pathname]);
 
-  // Click outside listener for dropdown
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (navContainerRef.current && !navContainerRef.current.contains(e.target as Node)) {
+      if (navIslandRef.current && !navIslandRef.current.contains(e.target as Node)) {
         cancelCloseTimeout();
         setActiveTab(null);
         setHoveredTab(null);
@@ -172,7 +170,6 @@ export function Navbar() {
     };
   }, []);
 
-  // Prevent body scroll when mobile menu is open
   useEffect(() => {
     if (menuOpen) {
       document.body.style.overflow = 'hidden';
@@ -202,22 +199,21 @@ export function Navbar() {
 
   return (
     <>
-      {/* Outer Floating Bar Header */}
+      {/* Floating Header */}
       <header
         className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
           scrolled ? 'py-2.5' : 'py-4'
         }`}
       >
         <div className="max-w-[1240px] mx-auto px-6 md:px-8">
-          <div
-            ref={navContainerRef}
-            className="relative flex items-center justify-between gap-6 min-h-[44px]"
-          >
-            {/* Left: Brand Logo Lockup */}
+          {/* Three-column layout: Logo | Nav (center) | Actions */}
+          <div className="relative flex items-center min-h-[44px]">
+
+            {/* LEFT: Brand Logo */}
             <Link
               to="/"
               onClick={handleLinkSelect}
-              className="brand-logo-lockup flex items-center gap-2.5 transition-transform hover:scale-[1.02] shrink-0"
+              className="brand-logo-lockup flex items-center gap-2.5 transition-transform hover:scale-[1.02] shrink-0 z-10"
               aria-label="Etromo Home"
             >
               <img
@@ -230,13 +226,16 @@ export function Navbar() {
               </span>
             </Link>
 
-            {/* Center: Desktop Menu (right-aligned flow, not dead-centered) */}
+            {/* CENTER: Desktop Navigation Island (absolutely centered) */}
             <div
-              className="hidden lg:flex items-center gap-6 ml-auto"
+              ref={navIslandRef}
+              className="hidden lg:block absolute left-1/2 -translate-x-1/2"
               onMouseEnter={cancelCloseTimeout}
               onMouseLeave={scheduleCloseTimeout}
             >
-              <nav className="relative z-20 flex items-center gap-1 rounded-full border border-neutral-700/60 bg-neutral-950/80 p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-2xl transition-all">
+              <nav
+                className="relative z-20 flex items-center gap-1 rounded-full border border-neutral-700/60 bg-neutral-950/80 p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-2xl transition-all"
+              >
                 {websiteNavItems.map((item) => {
                   const isOpen = activeTab === item.id;
                   const isHovered = hoveredTab === item.id;
@@ -248,7 +247,6 @@ export function Navbar() {
 
                   const content = (
                     <>
-                      {/* Dynamic Sliding Background Pill */}
                       {isHovered && (
                         <motion.div
                           layoutId="nav-island-hover-pill"
@@ -337,22 +335,22 @@ export function Navbar() {
                 })}
               </nav>
 
-              {/* Clean Minimalist Dropdown Panel */}
+              {/* Dropdown Panel — rendered inside the centered island wrapper */}
               <AnimatePresence>
                 {activeItem?.hasDropdown && activeItem.items && (
                   <div
-                    className="absolute left-1/2 -translate-x-1/2 top-full pt-2.5 z-50 pointer-events-auto"
+                    className="absolute left-1/2 -translate-x-1/2 top-full z-50 pointer-events-auto"
                     onMouseEnter={cancelCloseTimeout}
                     onMouseLeave={scheduleCloseTimeout}
                   >
-                    {/* Invisible hover bridge spanning between navbar and panel */}
-                    <div className="absolute -top-3 left-0 right-0 h-5 bg-transparent" />
+                    {/* Invisible hover bridge: fills gap between nav pill and panel */}
+                    <div className="h-3 w-full" />
 
                     <motion.div
-                      layoutId="nav-dropdown-surface"
-                      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                      key={activeTab}
+                      initial={{ opacity: 0, y: 8, scale: 0.97 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                      exit={{ opacity: 0, y: 5, scale: 0.97 }}
                       transition={{
                         type: 'spring',
                         stiffness: 420,
@@ -361,16 +359,7 @@ export function Navbar() {
                       }}
                       className="overflow-hidden rounded-2xl border border-neutral-800/90 bg-neutral-950/95 shadow-[0_24px_60px_-15px_rgba(0,0,0,0.85)] backdrop-blur-2xl ring-1 ring-white/[0.06]"
                     >
-                      {/* Clean Item List Frame */}
-                      <motion.div
-                        layout
-                        transition={{
-                          type: 'spring',
-                          stiffness: 420,
-                          damping: 32,
-                        }}
-                        className="w-[360px] p-2 space-y-1"
-                      >
+                      <div className="w-[360px] p-2 space-y-0.5">
                         {activeItem.items.map((subItem) => {
                           const Icon = subItem.icon;
                           return (
@@ -381,7 +370,7 @@ export function Navbar() {
                               className="group flex items-start gap-3 rounded-xl p-2.5 transition-all duration-150 hover:bg-neutral-900/90"
                             >
                               <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-neutral-800 bg-neutral-900/80 text-sky-400 transition-colors group-hover:border-sky-500/40 group-hover:bg-neutral-800 group-hover:text-white">
-                                <Icon className="h-4.5 w-4.5" />
+                                <Icon className="h-4 w-4" />
                               </div>
 
                               <div className="flex-1 min-w-0">
@@ -403,15 +392,15 @@ export function Navbar() {
                             </Link>
                           );
                         })}
-                      </motion.div>
+                      </div>
                     </motion.div>
                   </div>
                 )}
               </AnimatePresence>
             </div>
 
-            {/* Right: Actions (Client Portal & Contact CTA) */}
-            <div className="flex items-center gap-3">
+            {/* RIGHT: Action Buttons */}
+            <div className="flex items-center gap-3 ml-auto z-10">
               <Link
                 to="/portal"
                 onClick={handleLinkSelect}

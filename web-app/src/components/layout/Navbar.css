@@ -31,6 +31,282 @@ nav#nav .wrap {
 }
 
 /* ============================================================
+   HEADER THREE-COLUMN LAYOUT
+   ============================================================ */
+.navbar-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  transition: padding 0.3s ease;
+  padding: 16px 0;
+}
+.navbar-header.scrolled {
+  padding: 10px 0;
+}
+.navbar-header-inner {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 32px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+/* Left column: logo */
+.navbar-logo-col {
+  flex-shrink: 0;
+  z-index: 10;
+  position: relative;
+}
+
+/* Center column: nav island (absolutely centered in header) */
+.navbar-center-col {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none; /* hidden on mobile */
+  z-index: 20;
+}
+@media (min-width: 1024px) {
+  .navbar-center-col {
+    display: block;
+  }
+}
+
+/* The pill-shaped nav island */
+.nav-island {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(115, 115, 115, 0.4);
+  background: rgba(10, 10, 10, 0.85);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  white-space: nowrap;
+}
+
+/* Individual nav pill buttons/links */
+.nav-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: rgba(163, 163, 163, 1);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.nav-pill:hover,
+.nav-pill.active {
+  color: #fff;
+}
+.nav-pill-hover-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: rgba(50, 50, 50, 0.8);
+  z-index: -1;
+}
+
+/* Nav pill badge */
+.nav-pill-badge {
+  border-radius: 6px;
+  border: 1px solid rgba(100, 100, 100, 0.5);
+  background: rgba(20, 20, 20, 0.9);
+  padding: 1px 4px;
+  font-size: 9px;
+  font-family: monospace;
+  font-weight: 500;
+  color: rgba(212, 212, 212, 1);
+}
+
+/* Chevron icon in nav pill */
+.nav-pill-chevron {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.2s;
+  color: rgba(115, 115, 115, 1);
+}
+.nav-pill-chevron.open {
+  transform: rotate(180deg);
+  color: #fff;
+}
+
+/* Right column: action buttons */
+.navbar-right-col {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 10;
+  position: relative;
+}
+
+/* Dropdown panel */
+.nav-dropdown-wrapper {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 100%;
+  z-index: 50;
+  pointer-events: auto;
+}
+.nav-dropdown-bridge {
+  height: 12px;
+  width: 100%;
+}
+.nav-dropdown-panel {
+  width: 360px;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid rgba(40, 40, 40, 0.9);
+  background: rgba(8, 8, 8, 0.97);
+  box-shadow: 0 24px 60px -15px rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  ring: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 8px;
+}
+.nav-dropdown-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border-radius: 12px;
+  padding: 10px;
+  text-decoration: none;
+  transition: background 0.15s;
+  margin-bottom: 2px;
+}
+.nav-dropdown-item:hover {
+  background: rgba(20, 20, 20, 0.9);
+}
+.nav-dropdown-icon {
+  margin-top: 2px;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid rgba(40, 40, 40, 1);
+  background: rgba(18, 18, 18, 0.8);
+  color: #38bdf8;
+  transition: all 0.15s;
+}
+.nav-dropdown-item:hover .nav-dropdown-icon {
+  border-color: rgba(56, 189, 248, 0.4);
+  background: rgba(35, 35, 35, 1);
+  color: #fff;
+}
+.nav-dropdown-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(244, 244, 244, 1);
+  transition: color 0.15s;
+}
+.nav-dropdown-item:hover .nav-dropdown-title {
+  color: #fff;
+}
+.nav-dropdown-tag {
+  display: inline-block;
+  border-radius: 4px;
+  background: rgba(14, 165, 233, 0.1);
+  padding: 1px 6px;
+  font-size: 9px;
+  font-weight: 500;
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  margin-left: 4px;
+}
+.nav-dropdown-desc {
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: rgba(115, 115, 115, 1);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.nav-dropdown-arrow {
+  width: 12px;
+  height: 12px;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: all 0.15s;
+  color: rgba(115, 115, 115, 1);
+  margin-left: 4px;
+}
+.nav-dropdown-item:hover .nav-dropdown-arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Client portal button */
+.btn-client-portal {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  background: rgba(14, 165, 233, 0.1);
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #7dd3fc;
+  text-decoration: none;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.btn-client-portal:hover {
+  background: rgba(14, 165, 233, 0.2);
+  border-color: rgba(56, 189, 248, 0.5);
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+}
+.btn-client-portal .pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #38bdf8;
+  animation: pulse 2s infinite;
+}
+@media (min-width: 640px) {
+  .btn-client-portal { display: inline-flex; }
+}
+
+/* Talk to us CTA — hidden on mobile, shown sm+ */
+.btn-cta-talk {
+  display: none;
+}
+@media (min-width: 640px) {
+  .btn-cta-talk {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 16px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    border-radius: 999px;
+  }
+}
+
+/* ============================================================
    PREMIUM BRAND LOGO & TYPOGRAPHY (ETROMO)
    ============================================================ */
 .brand-logo-lockup {

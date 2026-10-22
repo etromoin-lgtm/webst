@@ -20,9 +20,12 @@ if (usePostgres) {
   console.log('PostgreSQL/Supabase pool initialized with connection string.');
 } else {
   // Primary database location is in the root database/ folder
+  const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
   const primaryDbPath = path.resolve(__dirname, '../../../database/database.sqlite');
   const fallbackDbPath = path.resolve(__dirname, '../../database.sqlite');
-  const dbPath = fs.existsSync(primaryDbPath) ? primaryDbPath : fallbackDbPath;
+  const dbPath = isServerless 
+    ? path.join('/tmp', 'database.sqlite')
+    : (fs.existsSync(primaryDbPath) ? primaryDbPath : fallbackDbPath);
 
   sqliteDb = new sqlite3.Database(dbPath, (err) => {
     if (err) {

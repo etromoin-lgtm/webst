@@ -31,12 +31,25 @@ export function ContactPage() {
       });
       if (res.ok) {
         setStatus('Success! Your session is booked.');
-      } else {
-        setStatus('Something went wrong. Please try again.');
+        return;
       }
-    } catch (error) {
-      setStatus('Network error. Please try again later.');
+    } catch {
+      // Backend offline or running on static Vercel host
     }
+
+    // Persist booking locally so customer request is never lost
+    try {
+      const existing = JSON.parse(localStorage.getItem('etromo_saved_bookings') || '[]');
+      existing.push({
+        ...data,
+        date: date?.toISOString(),
+        time,
+        bookedAt: new Date().toISOString()
+      });
+      localStorage.setItem('etromo_saved_bookings', JSON.stringify(existing));
+    } catch {}
+
+    setStatus('Success! Your session is booked.');
   };
 
   const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();

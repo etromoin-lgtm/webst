@@ -40,6 +40,14 @@ const PRESET_PARTNER_CODES: Record<string, StoredPartnerApp> = {
     status: 'Under Review (Beta Evaluation)',
     date: 'Recent Submission'
   },
+  'SALE-2ADDN2': {
+    code: 'SALE-2ADDN2',
+    name: 'Growth Consultant',
+    type: 'Sales',
+    company: 'Enterprise Growth Network',
+    status: 'Under Review (Beta Evaluation)',
+    date: 'Recent Submission'
+  },
   'TECH-DEMO01': {
     code: 'TECH-DEMO01',
     name: 'Developer Partner',

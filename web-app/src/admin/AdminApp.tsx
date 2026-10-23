@@ -9,6 +9,7 @@ export function AdminApp() {
       <Routes>
         <Route path="/" element={<AdminDashboard />} />
         <Route path="/blog/new" element={<BlogAdmin />} />
+        <Route path="/blog/edit/:slug" element={<BlogAdmin />} />
         <Route path="*" element={<AdminDashboard />} />
       </Routes>
     </div>

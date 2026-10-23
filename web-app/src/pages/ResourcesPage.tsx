@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, ArrowRight, Search } from 'lucide-react';
 import PageSEO from '../components/layout/PageSEO';
@@ -7,52 +7,119 @@ export function ResourcesPage() {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
-  const resources = [
+  const initialResources = [
     {
-      id: 1,
+      id: 'res-1',
       title: 'Enterprise CRM Migration & Data Normalization Playbook',
       category: 'Architecture Playbook',
       type: 'Technical Guide',
       readTime: '18 min read',
+      slug: 'enterprise-crm-migration-playbook',
       description: 'A comprehensive operational framework for decoupling legacy lead pipelines, mitigating data loss, and implementing resilient webhook queues.',
-      updated: 'October 2025',
+      updated: 'October 2026',
       downloadable: true
     },
     {
-      id: 2,
+      id: 'res-2',
       title: 'Sub-Minute KYC & Zero-Trust AML Architecture Whitepaper',
       category: 'Security & Compliance',
       type: 'Whitepaper',
       readTime: '24 min read',
+      slug: 'sub-minute-kyc-aml-architecture',
       description: 'Architecting cryptographic audit vaults, real-time sanction list screening, and computer vision document verification pipelines.',
-      updated: 'September 2025',
+      updated: 'September 2026',
       downloadable: true
     },
     {
-      id: 3,
+      id: 'res-3',
       title: 'High-Volume Kitchen Display Systems & Offline-First Sync Specification',
       category: 'Autonomous Systems',
       type: 'Engineering Spec',
       readTime: '14 min read',
+      slug: 'kds-offline-first-sync-spec',
       description: 'Designing distributed local SQLite edge daemons for uninterrupted point-of-sale transaction processing during network loss.',
-      updated: 'August 2025',
+      updated: 'August 2026',
       downloadable: true
     },
     {
-      id: 4,
+      id: 'res-4',
       title: 'WhatsApp Cloud API for High-Velocity Sales: Production Engineering Guide',
       category: 'Messaging & AI',
       type: 'Integration Guide',
       readTime: '12 min read',
+      slug: 'whatsapp-cloud-api-production-guide',
       description: 'Technical walkthrough of Meta Cloud API webhook reliability, session state management, rate limit buffering, and message templates.',
-      updated: 'November 2025',
+      updated: 'November 2026',
       downloadable: true
     }
   ];
 
+  const [allResources, setAllResources] = useState<any[]>(initialResources);
+
+  useEffect(() => {
+    fetch('/api/resources')
+      .then(res => res.json())
+      .then(data => {
+        if (data.resources && data.resources.length > 0) {
+          const mapped = data.resources.map((r: any) => ({
+            id: r.id,
+            title: r.title,
+            category: r.category,
+            type: r.type || 'Technical Guide',
+            readTime: `${Math.max(3, Math.ceil((r.content ? r.content.length : 500) / 400))} min read`,
+            slug: r.slug,
+            description: r.description || r.excerpt || 'Technical specification and architectural guide.',
+            updated: new Date(r.updated_at || r.published_date || Date.now()).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+            downloadable: !!r.downloadable,
+            pdf_url: r.pdf_url
+          }));
+          setAllResources(prev => {
+            const seen = new Set(prev.map(p => p.slug || p.title));
+            const additions = mapped.filter((r: any) => !seen.has(r.slug || r.title));
+            return [...prev, ...additions];
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Ingest any published blogs that belong to resource categories
+  useEffect(() => {
+    fetch('/api/blogs')
+      .then(res => res.json())
+      .then(data => {
+        if (data.blogs && data.blogs.length > 0) {
+          const resourceBlogs = data.blogs
+            .filter((b: any) =>
+              ['Architecture Playbook', 'Security & Compliance', 'Autonomous Systems', 'Messaging & AI', 'Technical Guide'].includes(b.category)
+            )
+            .map((b: any) => ({
+              id: b.id,
+              title: b.title,
+              category: b.category,
+              type: 'Published Resource',
+              readTime: b.readTime || '10 min read',
+              slug: b.slug,
+              description: b.excerpt || 'Technical specification and architectural guide.',
+              updated: new Date(b.published_date || Date.now()).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+              downloadable: true
+            }));
+
+          if (resourceBlogs.length > 0) {
+            setAllResources(prev => {
+              const seen = new Set(prev.map(p => p.slug || p.title));
+              const additions = resourceBlogs.filter((r: any) => !seen.has(r.slug || r.title));
+              return [...prev, ...additions];
+            });
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const categories = ['All', 'Architecture Playbook', 'Security & Compliance', 'Autonomous Systems', 'Messaging & AI'];
 
-  const filtered = resources.filter(r => {
+  const filtered = allResources.filter(r => {
     const matchesSearch =
       search === '' ||
       r.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -201,22 +268,43 @@ export function ResourcesPage() {
                   {r.description}
                 </p>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.06)', flexWrap: 'wrap', gap: '8px' }}>
                   <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.4)' }}>Updated {r.updated}</span>
-                  <Link
-                    to="/contact"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      color: 'var(--sky, #8FC1FF)',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      textDecoration: 'none'
-                    }}
-                  >
-                    Request Document <ArrowRight size={13} />
-                  </Link>
+                  <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+                    {r.slug && (
+                      <Link
+                        to={`/blog/${r.slug}`}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          color: 'var(--sky, #8FC1FF)',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          textDecoration: 'none'
+                        }}
+                      >
+                        Read Online <ArrowRight size={12} />
+                      </Link>
+                    )}
+                    {r.downloadable && (r.pdf_url || r.slug) && (
+                      <a
+                        href={r.pdf_url || `/api/resources/${r.slug}/pdf`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          color: 'rgba(255, 255, 255, 0.7)',
+                          fontSize: '12px',
+                          textDecoration: 'none'
+                        }}
+                      >
+                        Download PDF
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

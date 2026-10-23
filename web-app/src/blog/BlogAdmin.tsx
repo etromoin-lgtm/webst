@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import { Save, Eye, Image as ImageIcon, Settings, CheckCircle2 } from 'lucide-react';
@@ -6,13 +7,33 @@ import './Blog.css'; // Reuse blog CSS for preview
 
 export default function BlogAdmin() {
   const [title, setTitle] = useState('');
+  const [subtitle, setSubtitle] = useState('');
   const [slug, setSlug] = useState('');
   const [category, setCategory] = useState('Technology');
   const [imageUrl, setImageUrl] = useState('');
+  const [imageAlt, setImageAlt] = useState('');
+  const [excerpt, setExcerpt] = useState('');
+  const [seoTitle, setSeoTitle] = useState('');
+  const [seoDesc, setSeoDesc] = useState('');
+  const [tags, setTags] = useState('');
+  const [featured, setFeatured] = useState(false);
   const [content, setContent] = useState('');
   const [isPreview, setIsPreview] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const categories = ['Technology', 'Design', 'Business', 'AI', 'Programming', 'Tutorials', 'Lifestyle'];
+  const categories = [
+    'Technology',
+    'Architecture Playbook',
+    'Technical Guide',
+    'Security & Compliance',
+    'Messaging & AI',
+    'Autonomous Systems',
+    'Design',
+    'Business',
+    'AI',
+    'Vlog',
+  ];
 
   const modules = {
     toolbar: [
@@ -25,13 +46,77 @@ export default function BlogAdmin() {
     ],
   };
 
+  const { slug: editSlug } = useParams();
+  const [editing, setEditing] = useState(false);
+  const [editId, setEditId] = useState<number|null>(null);
+
+  useEffect(() => {
+    if (!editSlug) return;
+    setEditing(true);
+    fetch(`/api/blogs/${editSlug}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.blog) {
+          const b = data.blog;
+          setEditId(b.id || null);
+          setTitle(b.title || '');
+          setSubtitle(b.subtitle || '');
+          setSlug(b.slug || editSlug);
+          setCategory(b.category || 'Technology');
+          setImageUrl(b.image_url || '');
+          setImageAlt(b.image_alt || '');
+          setExcerpt(b.excerpt || '');
+          setSeoTitle(b.seo_title || '');
+          setSeoDesc(b.seo_description || '');
+          setTags(Array.isArray(b.tags) ? b.tags.join(', ') : b.tags || '');
+          setFeatured(!!b.featured);
+          setContent(b.content || '');
+        }
+      })
+      .catch(() => {});
+  }, [editSlug]);
+
   const handleSave = async (publish = false) => {
-    // In a real app, this would post to the backend
+    if (!title.trim()) { alert('Please enter a title.'); return; }
+    const finalSlug = slug || generateSlug(title);
+    const token = localStorage.getItem('admin_token');
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
     const payload = {
-      title, slug, category, image_url: imageUrl, content, status: publish ? 'published' : 'draft'
+      title,
+      subtitle,
+      slug: finalSlug,
+      category,
+      image_url: imageUrl,
+      image_alt: imageAlt,
+      excerpt,
+      seo_title: seoTitle,
+      seo_description: seoDesc,
+      tags: tags.split(',').map((t: string) => t.trim()).filter(Boolean),
+      featured,
+      content,
+      status: publish ? 'published' : 'draft'
     };
-    console.log("Saving blog:", payload);
-    alert(`Blog ${publish ? 'published' : 'saved as draft'} successfully!`);
+
+    setSaving(true);
+    try {
+      const method = editing && editId ? 'PATCH' : 'POST';
+      const url = editing && editId ? `/api/admin/blogs/${editId}` : '/api/admin/blogs';
+      const res = await fetch(url, { method, headers, body: JSON.stringify(payload) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.blog?.slug) setSlug(data.blog.slug);
+    } catch (e) {
+      console.error('Save error:', e);
+      alert('Failed to save. Please check your connection and try again.');
+      setSaving(false);
+      return;
+    }
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+    if (publish) setTimeout(() => window.history.back(), 1500);
   };
 
   const generateSlug = (text: string) => {
@@ -64,8 +149,8 @@ export default function BlogAdmin() {
           <button onClick={() => setIsPreview(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', cursor: 'pointer' }}>
             <Eye size={18} /> Preview
           </button>
-          <button onClick={() => handleSave(false)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', cursor: 'pointer' }}>
-            <Save size={18} /> Save Draft
+          <button onClick={() => handleSave(false)} disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px', background: saved ? 'rgba(52,211,153,0.15)' : saving ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.05)', border: saved ? '1px solid rgba(52,211,153,0.4)' : '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: saved ? '#34D399' : 'white', cursor: saving ? 'default' : 'pointer', transition: 'all 0.2s', opacity: saving ? 0.6 : 1 }}>
+            <Save size={18} /> {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Draft'}
           </button>
           <button onClick={() => handleSave(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px', background: 'var(--sky)', border: 'none', borderRadius: '8px', color: 'var(--ink)', fontWeight: 600, cursor: 'pointer' }}>
             <CheckCircle2 size={18} /> Publish

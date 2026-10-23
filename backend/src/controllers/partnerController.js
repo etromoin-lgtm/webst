@@ -8,8 +8,31 @@ const generateCode = (type) => {
 
 const applyPartner = async (req, res) => {
   const { type, name, email, company, product_name, website, agency_name, experience, linkedin } = req.body;
-  const code = generateCode(type);
+  const cleanEmail = (email || '').trim().toLowerCase();
+
   try {
+    if (cleanEmail) {
+      const existing = await db.get('SELECT * FROM partner_applications WHERE LOWER(email) = ?', [cleanEmail]);
+      if (existing) {
+        // Update existing application rather than creating duplicate
+        await db.run(
+          `UPDATE partner_applications 
+           SET type = ?, name = ?, company = ?, product_name = ?, website = ?, agency_name = ?, experience = ?, linkedin = ?
+           WHERE id = ?`,
+          [type || existing.type, name || existing.name, company || existing.company, product_name || existing.product_name, website || existing.website, agency_name || existing.agency_name, experience || existing.experience, linkedin || existing.linkedin, existing.id]
+        );
+        const row = await db.get('SELECT * FROM partner_applications WHERE id = ?', [existing.id]);
+        return res.status(200).json({
+          success: true,
+          code: existing.code,
+          isDuplicate: true,
+          message: 'Existing partner application updated.',
+          data: row
+        });
+      }
+    }
+
+    const code = generateCode(type);
     const result = await db.run(
       `INSERT INTO partner_applications (type, name, email, company, product_name, website, agency_name, experience, linkedin, code)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,

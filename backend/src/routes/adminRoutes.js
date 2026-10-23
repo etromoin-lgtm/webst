@@ -10,12 +10,20 @@ const {
   deleteApplication,
   getContacts,
   updateContact,
+  deleteContact,
   getBookings,
   updateBooking,
   getStats
 } = require('../controllers/adminController');
 
-const { getAllBlogs, createBlog, deleteBlog } = require('../controllers/blogController');
+const {
+  getAllBlogsAdmin,
+  createBlog,
+  updateBlog,
+  deleteBlog
+} = require('../controllers/blogController');
+
+const { getAllResources, createResource, deleteResource } = require('../controllers/resourceController');
 const { getProducts, createProduct, updateProduct, deleteProduct } = require('../controllers/productController');
 const { getAllTeam, createTeamMember, updateTeamMember, deleteTeamMember } = require('../controllers/teamController');
 const { getSeoSettings, updateSeoSettings, updateSiteSettings, getSiteSettings } = require('../controllers/settingsController');
@@ -41,15 +49,22 @@ router.delete('/applications/:id', deleteApplication);
 // Contacts
 router.get('/contacts', getContacts);
 router.patch('/contacts/:id', updateContact);
+router.delete('/contacts/:id', deleteContact);
 
 // Bookings
 router.get('/bookings', getBookings);
 router.patch('/bookings/:id', updateBooking);
 
 // Blogs
-router.get('/blogs', getAllBlogs);
+router.get('/blogs', getAllBlogsAdmin);
 router.post('/blogs', createBlog);
+router.patch('/blogs/:id', updateBlog);
 router.delete('/blogs/:id', deleteBlog);
+
+// Resources
+router.get('/resources', getAllResources);
+router.post('/resources', createResource);
+router.delete('/resources/:id', deleteResource);
 
 // Products
 router.get('/products', getProducts);

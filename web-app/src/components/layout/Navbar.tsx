@@ -14,6 +14,10 @@ import {
   ArrowRight,
   ExternalLink,
   Compass,
+  Building2,
+  GraduationCap,
+  Coffee,
+  ShoppingBag,
 } from 'lucide-react';
 import './Navbar.css';
 
@@ -39,28 +43,41 @@ const websiteNavItems: NavItem[] = [
     id: 'products',
     label: 'Products',
     href: '/products',
-    badge: '3 CRM',
+    badge: 'By Industry',
     hasDropdown: true,
     items: [
       {
-        title: 'Real Estate CRM',
-        desc: 'Lead distribution, site-visit dispatch & live pipeline tracking.',
-        icon: Layers,
+        title: 'Real Estate',
+        desc: 'Lead distribution, site-visit dispatch & broker pipeline tracking.',
+        icon: Building2,
         tag: 'Flagship',
-        href: '/products/real-estate-crm',
+        href: '/products?category=Real+Estate',
       },
       {
-        title: 'WhatsApp AI CRM',
-        desc: 'Conversational pipeline engine & multi-agent automation.',
+        title: 'Education & Training',
+        desc: 'Student admissions, batch allocations & automated fee reminders.',
+        icon: GraduationCap,
+        tag: 'Popular',
+        href: '/products?category=Education',
+      },
+      {
+        title: 'Hospitality & Cafes',
+        desc: 'Order routing, kitchen display, digital menus & inventory.',
+        icon: Coffee,
+        href: '/products?category=Hospitality',
+      },
+      {
+        title: 'Communication & AI',
+        desc: 'Official WhatsApp conversational pipeline & multi-agent automation.',
         icon: Zap,
-        tag: 'AI Powered',
-        href: '/products/whatsapp-crm',
+        tag: 'AI Engine',
+        href: '/products?category=Communication',
       },
       {
-        title: 'Cafe & Retail OS',
-        desc: 'Order routing, kitchen display & real-time inventory.',
-        icon: Sparkles,
-        href: '/products/cafe-crm',
+        title: 'Retail & eCommerce',
+        desc: 'Omnichannel inventory sync, orders & customer retention.',
+        icon: ShoppingBag,
+        href: '/products?category=Retail',
       },
     ],
   },
@@ -394,15 +411,17 @@ export function Navbar() {
         {/* Mobile Products Accordion */}
         <div style={{ padding: 8, background: 'rgba(18,18,18,0.4)', borderRadius: 12, margin: '4px 0', border: '1px solid rgba(40,40,40,0.6)' }}>
           <div onClick={() => setMobileProductsOpen((o) => !o)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: 8, color: '#fff', fontWeight: 600, fontSize: 16 }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Layers style={{ width: 16, height: 16, color: '#38bdf8' }} /> Products</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Layers style={{ width: 16, height: 16, color: '#38bdf8' }} /> Products by Industry</span>
             <ChevronDown style={{ width: 16, height: 16, transform: mobileProductsOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
           </div>
           {mobileProductsOpen && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingLeft: 16, marginTop: 4, borderLeft: '1px solid rgba(40,40,40,1)', marginLeft: 8 }}>
-              <Link to="/products" onClick={() => setMenuOpen(false)} style={{ fontSize: 14, color: 'rgba(200,200,200,1)', padding: '6px 0' }}>All Products</Link>
-              <Link to="/products/real-estate-crm" onClick={() => setMenuOpen(false)} style={{ fontSize: 14, color: 'rgba(200,200,200,1)', padding: '6px 0' }}>↳ Real Estate CRM</Link>
-              <Link to="/products/whatsapp-crm" onClick={() => setMenuOpen(false)} style={{ fontSize: 14, color: 'rgba(200,200,200,1)', padding: '6px 0' }}>↳ WhatsApp AI CRM</Link>
-              <Link to="/products/cafe-crm" onClick={() => setMenuOpen(false)} style={{ fontSize: 14, color: 'rgba(200,200,200,1)', padding: '6px 0' }}>↳ Cafe & Retail OS</Link>
+              <Link to="/products" onClick={() => setMenuOpen(false)} style={{ fontSize: 14, color: 'rgba(200,200,200,1)', padding: '6px 0' }}>All Industries & Products</Link>
+              <Link to="/products?category=Real+Estate" onClick={() => setMenuOpen(false)} style={{ fontSize: 14, color: 'rgba(200,200,200,1)', padding: '6px 0' }}>↳ Real Estate</Link>
+              <Link to="/products?category=Education" onClick={() => setMenuOpen(false)} style={{ fontSize: 14, color: 'rgba(200,200,200,1)', padding: '6px 0' }}>↳ Education & Training</Link>
+              <Link to="/products?category=Hospitality" onClick={() => setMenuOpen(false)} style={{ fontSize: 14, color: 'rgba(200,200,200,1)', padding: '6px 0' }}>↳ Hospitality & Cafes</Link>
+              <Link to="/products?category=Communication" onClick={() => setMenuOpen(false)} style={{ fontSize: 14, color: 'rgba(200,200,200,1)', padding: '6px 0' }}>↳ Communication & AI</Link>
+              <Link to="/products?category=Retail" onClick={() => setMenuOpen(false)} style={{ fontSize: 14, color: 'rgba(200,200,200,1)', padding: '6px 0' }}>↳ Retail & eCommerce</Link>
             </div>
           )}
         </div>

@@ -2,6 +2,7 @@ const sqlite3 = require('sqlite3').verbose();
 const { Pool } = require('pg');
 const path = require('path');
 const fs = require('fs');
+const { hashPassword } = require('../middleware/authMiddleware');
 
 const usePostgres = Boolean(
   process.env.DATABASE_URL &&
@@ -71,14 +72,65 @@ function initDB() {
     db.run(`CREATE TABLE IF NOT EXISTS blogs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
+      subtitle TEXT,
       content TEXT NOT NULL,
       author_id TEXT,
       category TEXT DEFAULT 'General',
       published_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       slug TEXT UNIQUE NOT NULL,
       image_url TEXT,
+      image_alt TEXT,
+      excerpt TEXT,
+      tags TEXT,
+      seo_title TEXT,
+      seo_description TEXT,
+      featured INTEGER DEFAULT 0,
       status TEXT DEFAULT 'published'
     )`);
+
+    // Safe migrations for existing blogs tables
+    [
+      'subtitle TEXT',
+      'updated_at DATETIME DEFAULT CURRENT_TIMESTAMP',
+      'image_alt TEXT',
+      'excerpt TEXT',
+      'tags TEXT',
+      'seo_title TEXT',
+      'seo_description TEXT',
+      'featured INTEGER DEFAULT 0'
+    ].forEach(col => {
+      db.run(`ALTER TABLE blogs ADD COLUMN ${col}`, () => {});
+    });
+
+    db.run(`CREATE TABLE IF NOT EXISTS resources (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      content TEXT,
+      author_id TEXT,
+      category TEXT DEFAULT 'General',
+      type TEXT DEFAULT 'Technical Guide',
+      description TEXT,
+      excerpt TEXT,
+      subtitle TEXT,
+      image_alt TEXT,
+      published_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      slug TEXT UNIQUE NOT NULL,
+      image_url TEXT,
+      pdf_url TEXT,
+      downloadable INTEGER DEFAULT 1,
+      tags TEXT,
+      seo_title TEXT,
+      seo_description TEXT,
+      featured INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'published'
+    )`);
+
+    // Safe migrations for resources table (existing databases)
+    ['subtitle TEXT', 'image_alt TEXT', 'featured INTEGER DEFAULT 0'].forEach(col => {
+      db.run(`ALTER TABLE resources ADD COLUMN ${col}`, () => {});
+    });
 
     db.run(`CREATE TABLE IF NOT EXISTS products (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -94,6 +146,247 @@ function initDB() {
 
     db.run(`ALTER TABLE products ADD COLUMN link_url TEXT`, () => {});
     db.run(`ALTER TABLE products ADD COLUMN features_json TEXT`, () => {});
+
+    // Ensure initial industry products are seeded
+    db.get('SELECT COUNT(*) as count FROM products', (err, row) => {
+      if (!err && (!row || row.count < 3)) {
+        const seedList = [
+          {
+            name: 'Real Estate CRM Pro',
+            category: 'Real Estate',
+            price_label: 'Subscription Based',
+            link_url: '/products/real-estate-crm',
+            description: 'The complete operating system for real estate developers and channel partners. Unified lead pipeline, automated follow-ups, and site visit tracking.',
+            features_json: JSON.stringify({
+              boostValue: '+65%',
+              boostLabel: 'Lead Conversion',
+              timeReducedValue: '-40%',
+              timeReducedLabel: 'Time Reduced',
+              benefits: [
+                { icon: 'target', text: 'Instant Lead Capture from Meta & Google' },
+                { icon: 'refresh', text: 'Automated Follow-ups & WhatsApp Broadcasts' },
+                { icon: 'shield', text: 'Role-Based Access & Database Security' }
+              ]
+            })
+          },
+          {
+            name: 'WhatsApp CRM',
+            category: 'Communication & AI',
+            price_label: 'One-Time + Subscription',
+            link_url: '/products/whatsapp-crm',
+            description: 'Connect directly with customers on their favorite platform. Multi-agent routing, automated message flows, broadcast campaigns, and analytics.',
+            features_json: JSON.stringify({
+              boostValue: '3.5x',
+              boostLabel: 'Response Speed',
+              timeReducedValue: '-60%',
+              timeReducedLabel: 'Resolution Time',
+              benefits: [
+                { icon: 'zap', text: 'Official WhatsApp Business Cloud API Integration' },
+                { icon: 'refresh', text: 'Multi-Agent Routing & Shared Inbox' },
+                { icon: 'trending', text: 'High-Open-Rate Automated Broadcasts' }
+              ]
+            })
+          },
+          {
+            name: 'Café Management Suite',
+            category: 'Hospitality',
+            price_label: 'Subscription Based',
+            link_url: '/products/cafe-crm',
+            description: 'An integrated management platform for modern café groups and restaurant chains. Multi-branch inventory, loyalty programs, and digital menus.',
+            features_json: JSON.stringify({
+              boostValue: '+32%',
+              boostLabel: 'Repeat Customers',
+              timeReducedValue: '-50%',
+              timeReducedLabel: 'Inventory Waste',
+              benefits: [
+                { icon: 'target', text: 'Centralized Multi-Outlet Inventory Control' },
+                { icon: 'trending', text: 'Integrated Loyalty Programs & Digital Menus' },
+                { icon: 'shield', text: 'Real-time Cross-Branch Sales Analytics' }
+              ]
+            })
+          },
+          {
+            name: 'EduSphere Academy CRM',
+            category: 'Education',
+            price_label: 'Subscription Based',
+            link_url: '/contact?topic=education-crm',
+            description: 'All-in-one education lifecycle operating system for academies, institutes, and coaching schools. Streamlined inquiry intake, admission stages, batch allocations, and automated fee reminders.',
+            features_json: JSON.stringify({
+              boostValue: '+78%',
+              boostLabel: 'Admission Ratio',
+              timeReducedValue: '-55%',
+              timeReducedLabel: 'Admin Workload',
+              benefits: [
+                { icon: 'target', text: 'Omnichannel Inquiry Intake & Fast Follow-up' },
+                { icon: 'refresh', text: 'Automated Fee Reminders & Payment Receipts' },
+                { icon: 'shield', text: 'Student Lifecycle, Batches & Attendance Logs' }
+              ]
+            })
+          }
+        ];
+
+        seedList.forEach(p => {
+          db.run(
+            'INSERT OR IGNORE INTO products (name, category, price_label, link_url, description, features_json) VALUES (?, ?, ?, ?, ?, ?)',
+            [p.name, p.category, p.price_label, p.link_url, p.description, p.features_json],
+            () => {}
+          );
+        });
+      }
+    });
+
+    // Ensure initial blogs are seeded
+    db.get('SELECT COUNT(*) as count FROM blogs', (err, row) => {
+      if (!err && (!row || row.count === 0)) {
+        const seedBlogs = [
+          {
+            title: 'The Future of AI in Real Estate Operations',
+            slug: 'future-of-ai-in-real-estate',
+            category: 'Technology',
+            author_id: 'Sarah Jenkins',
+            image_url: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
+            content: `
+              <p>The real estate industry has traditionally been slow to adopt new technologies. But in 2026, the landscape has fundamentally shifted. Artificial intelligence is no longer a buzzword—it is the baseline for competitive operations.</p>
+              <h2>The Data-Driven Pipeline</h2>
+              <p>Before implementing intelligent systems, developers and brokers relied on fragmented data across Excel sheets, WhatsApp messages, and disconnected CRMs. Today, AI unifies this data.</p>
+              <blockquote>"The companies that will survive the next decade are those that treat their lead data as an interconnected nervous system rather than isolated spreadsheets."</blockquote>
+              <p>By automating the initial qualification process, sales teams are saving an average of 14 hours per week, allowing them to focus entirely on closing deals and building relationships.</p>
+              <h2>Comparing Legacy and Modern Systems</h2>
+              <p>Let's look at a direct comparison of traditional operations versus an AI-driven workflow.</p>
+              <table style="width:100%; border-collapse: collapse; margin: 20px 0;">
+                <thead>
+                  <tr style="border-bottom: 2px solid rgba(255,255,255,0.2);">
+                    <th style="padding: 10px; text-align: left;">Feature</th>
+                    <th style="padding: 10px; text-align: left;">Legacy Systems</th>
+                    <th style="padding: 10px; text-align: left;">AI-Powered CRM</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                    <td style="padding: 10px;">Lead Qualification</td>
+                    <td style="padding: 10px;">Manual calls (Days)</td>
+                    <td style="padding: 10px;">Instant via WhatsApp Bot (Seconds)</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                    <td style="padding: 10px;">Follow-ups</td>
+                    <td style="padding: 10px;">Manual notes</td>
+                    <td style="padding: 10px;">Predictive automated cadence</td>
+                  </tr>
+                </tbody>
+              </table>
+              <h2>Conclusion</h2>
+              <p>The transition to intelligent workflows isn't just about saving time; it's about providing a superior customer experience. The future belongs to those who adapt.</p>
+            `
+          },
+          {
+            title: 'Scaling Design Systems Across Enterprise Teams',
+            slug: 'design-systems-scale',
+            category: 'Design',
+            author_id: 'David Chen',
+            image_url: 'https://images.unsplash.com/photo-1618761714954-0b8cd0026356?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
+            content: `
+              <p>A comprehensive guide to building, maintaining, and evolving design systems that empower developers without stifling creativity.</p>
+              <h2>Foundational Principles</h2>
+              <p>Every scalable design system starts with design tokens: colors, spacing, typography scales, and shadows that remain immutable across platforms.</p>
+              <h2>Bridging Figma and Production Code</h2>
+              <p>Automating design token extraction via GitHub Actions and Figma APIs eliminates tedious CSS recreation and human error.</p>
+              <h2>Measuring Adoption and ROI</h2>
+              <p>Teams leveraging a centralized token library ship user interfaces 42% faster and resolve UI inconsistencies in half the time.</p>
+            `
+          },
+          {
+            title: '5 Automation Workflows That Will Save You 10 Hours a Week',
+            slug: 'automation-workflows',
+            category: 'Productivity',
+            author_id: 'Elena Rodriguez',
+            image_url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
+            content: `
+              <p>Stop doing manual data entry. These five simple automated workflows will revolutionize how your team operates.</p>
+              <h2>1. Automated Inbound Lead Triage</h2>
+              <p>Instant webhook dispatching from web forms directly into your sales team's WhatsApp queue with intelligent round-robin allocation.</p>
+              <h2>2. Meeting Booking Calendar Sync</h2>
+              <p>Sync bookings instantly to Google Calendar and trigger automatic email confirmations and reminders.</p>
+              <h2>3. Daily Metric Pulse Digests</h2>
+              <p>An automated cron worker aggregates daily signups, conversion rates, and revenue numbers and delivers them to Slack or WhatsApp every morning at 8:00 AM.</p>
+            `
+          },
+          {
+            title: 'Enterprise CRM Migration & Data Normalization Playbook',
+            slug: 'enterprise-crm-migration-playbook',
+            category: 'Architecture Playbook',
+            author_id: 'Etromo Solutions Architecture',
+            image_url: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
+            content: `
+              <p>A comprehensive operational framework for decoupling legacy lead pipelines, mitigating data loss, and implementing resilient webhook queues.</p>
+              <h2>Executive Summary</h2>
+              <p>Large enterprise migrations fail when companies attempt 'big bang' cutovers. This playbook details our verified dual-write migration architecture that runs legacy and modern CRMs concurrently with zero downtime.</p>
+              <h2>Phase 1: Ingestion Buffer & CDC</h2>
+              <p>Implement Change Data Capture (CDC) listening on primary transaction logs, queueing normalized payloads into Apache Kafka or BullMQ.</p>
+              <h2>Phase 2: Reconciliation & Data Integrity</h2>
+              <p>Automated parity scripts continuously compare primary key checksums between the legacy DB and target Postgres cluster.</p>
+              <h2>Conclusion & Rollback Plan</h2>
+              <p>With rollback checkpoints at every boundary, risk is effectively eliminated before final DNS cutover.</p>
+            `
+          },
+          {
+            title: 'Sub-Minute KYC & Zero-Trust AML Architecture Whitepaper',
+            slug: 'sub-minute-kyc-aml-architecture',
+            category: 'Security & Compliance',
+            author_id: 'Security Engineering Team',
+            image_url: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
+            content: `
+              <p>Architecting cryptographic audit vaults, real-time sanction list screening, and computer vision document verification pipelines.</p>
+              <h2>Zero-Trust Verification Pipeline</h2>
+              <p>Customer identity verification requires balance between strict regulatory compliance and friction-free onboarding.</p>
+              <h2>Cryptographic Proofs & Audit Vaults</h2>
+              <p>All sensitive PII is encrypted with customer-held KMS keys before storage, guaranteeing that no raw documents are leaked.</p>
+              <h2>Real-time Watchlist Matching</h2>
+              <p>Using in-memory Trie data structures, incoming applicants are screened against UN and OFAC sanction lists in sub-15ms.</p>
+            `
+          },
+          {
+            title: 'High-Volume Kitchen Display Systems & Offline-First Sync Specification',
+            slug: 'kds-offline-first-sync-spec',
+            category: 'Autonomous Systems',
+            author_id: 'Hardware & Edge Systems',
+            image_url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
+            content: `
+              <p>Designing distributed local SQLite edge daemons for uninterrupted point-of-sale transaction processing during network loss.</p>
+              <h2>The Offline Problem</h2>
+              <p>When high-throughput restaurants lose internet connectivity during peak rush hours, traditional cloud-only POS systems halt operations entirely.</p>
+              <h2>Local SQLite Edge Architecture</h2>
+              <p>Each kitchen terminal runs an embedded SQLite replica. All orders write locally first, returning instant UI confirmation.</p>
+              <h2>Conflict-Free Replicated Data Types (CRDTs)</h2>
+              <p>When connectivity is restored, mutations resolve automatically using state-based CRDTs without human intervention.</p>
+            `
+          },
+          {
+            title: 'WhatsApp Cloud API for High-Velocity Sales: Production Engineering Guide',
+            slug: 'whatsapp-cloud-api-production-guide',
+            category: 'Messaging & AI',
+            author_id: 'Etromo Messaging Group',
+            image_url: 'https://images.unsplash.com/photo-1611746872915-64382b5c76da?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
+            content: `
+              <p>Technical walkthrough of Meta Cloud API webhook reliability, session state management, rate limit buffering, and message templates.</p>
+              <h2>Webhook Architecture & Acknowledgement</h2>
+              <p>Meta requires 200 OK responses within 3 seconds. Our worker decouples webhook reception from downstream processing via Redis streams.</p>
+              <h2>Handling High-Concurrency Broadcasts</h2>
+              <p>Token bucket rate limiters prevent account suspensions while delivering up to 500 messages per second with optimal throughput.</p>
+              <h2>Dynamic Template Ingestion</h2>
+              <p>Real-time template synchronization with Meta Graph API guarantees that sales reps only dispatch approved messaging copy.</p>
+            `
+          }
+        ];
+
+        seedBlogs.forEach(b => {
+          db.run(
+            'INSERT OR IGNORE INTO blogs (title, slug, category, author_id, image_url, content) VALUES (?, ?, ?, ?, ?, ?)',
+            [b.title, b.slug, b.category, b.author_id, b.image_url, b.content],
+            () => {}
+          );
+        });
+      }
+    });
 
     db.run(`CREATE TABLE IF NOT EXISTS team_members (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -379,7 +672,7 @@ function initDB() {
               const orgId = this.lastID;
               // Demo User (password: client123)
               db.run(`INSERT INTO portal_users (organization_id, email, password_hash, full_name, phone, role)
-                      VALUES (?, 'client@acme.com', 'client123', 'John Doe', '+1 (555) 234-5678', 'CLIENT')`, [orgId]);
+                      VALUES (?, 'client@acme.com', ?, 'John Doe', '+1 (555) 234-5678', 'CLIENT')`, [orgId, hashPassword('client123')]);
 
               // Demo Products
               db.run(`INSERT INTO portal_product_purchases (organization_id, product_name, license_key, purchase_date, entitlement_type, status, price_paid)

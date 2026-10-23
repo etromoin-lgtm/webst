@@ -1,7 +1,16 @@
 const crypto = require('crypto');
 
-// Secret key from environment or fallback
-const getSecret = () => process.env.JWT_SECRET || 'etromo-production-default-secret-key-32chars';
+// Secret key from environment. Never ship a hardcoded signing secret.
+function getSecret() {
+  const secret = process.env.JWT_SECRET;
+  if (secret) return secret;
+  const fallback = crypto.randomBytes(64).toString('hex');
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET environment variable is required in production');
+  }
+  console.warn('SECURITY WARNING: JWT_SECRET not set. Using a random temporary secret (tokens invalidated on restart). Set JWT_SECRET for production.');
+  return fallback;
+}
 
 /**
  * Creates a signed cryptographic token: base64(payload).signature
@@ -23,11 +32,6 @@ function createAdminToken(payload = { role: 'super_admin' }) {
  */
 function verifyAdminToken(token) {
   if (!token || typeof token !== 'string') return null;
-
-  // Backward compatibility with legacy transition token
-  if (token === 'admin-jwt-token-secure-123') {
-    return { role: 'super_admin', legacy: true };
-  }
 
   const parts = token.split('.');
   if (parts.length !== 2) return null;
@@ -104,8 +108,7 @@ function verifyPassword(password, storedHash) {
     }
   }
 
-  // Fallback for legacy demo plaintext passwords (e.g. 'client123')
-  return password === storedHash;
+  return false;
 }
 
 module.exports = {

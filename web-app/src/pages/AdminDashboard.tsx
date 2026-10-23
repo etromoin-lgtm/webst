@@ -20,7 +20,84 @@ import TeamCard from '../components/ui/TeamCard';
 import TeamExpandedModal from '../components/ui/TeamExpandedModal';
 import CaseStudiesStudio from '../components/admin/CaseStudiesStudio';
 import AdminClientManager from '../components/admin/AdminClientManager';
-import '../admin/Admin.css';
+const defaultAdminProducts = [
+  {
+    id: 1,
+    name: 'Real Estate CRM Pro',
+    category: 'Real Estate',
+    price_label: 'Subscription Based',
+    link_url: '/products/real-estate-crm',
+    description: 'The complete operating system for real estate developers and channel partners. Unified lead pipeline, automated follow-ups, and site visit tracking.',
+    features_json: JSON.stringify({
+      boostValue: '+65%',
+      boostLabel: 'Lead Conversion',
+      timeReducedValue: '-40%',
+      timeReducedLabel: 'Time Reduced',
+      benefits: [
+        { icon: 'target', text: 'Instant Lead Capture from Meta & Google' },
+        { icon: 'refresh', text: 'Automated Follow-ups & WhatsApp Broadcasts' },
+        { icon: 'shield', text: 'Role-Based Access & Database Security' }
+      ]
+    })
+  },
+  {
+    id: 2,
+    name: 'EduSphere Academy CRM',
+    category: 'Education',
+    price_label: 'Subscription Based',
+    link_url: '/contact?topic=education-crm',
+    description: 'All-in-one education lifecycle operating system for academies, institutes, and coaching schools. Streamlined inquiry intake, admission stages, batch allocations, and automated fee reminders.',
+    features_json: JSON.stringify({
+      boostValue: '+78%',
+      boostLabel: 'Admission Ratio',
+      timeReducedValue: '-55%',
+      timeReducedLabel: 'Admin Workload',
+      benefits: [
+        { icon: 'target', text: 'Omnichannel Inquiry Intake & Fast Follow-up' },
+        { icon: 'refresh', text: 'Automated Fee Reminders & Payment Receipts' },
+        { icon: 'shield', text: 'Student Lifecycle, Batches & Attendance Logs' }
+      ]
+    })
+  },
+  {
+    id: 3,
+    name: 'WhatsApp CRM',
+    category: 'Communication & AI',
+    price_label: 'One-Time + Subscription',
+    link_url: '/products/whatsapp-crm',
+    description: 'Connect directly with customers on their favorite platform. Multi-agent routing, automated message flows, broadcast campaigns, and analytics.',
+    features_json: JSON.stringify({
+      boostValue: '3.5x',
+      boostLabel: 'Response Speed',
+      timeReducedValue: '-60%',
+      timeReducedLabel: 'Resolution Time',
+      benefits: [
+        { icon: 'zap', text: 'Official WhatsApp Business Cloud API Integration' },
+        { icon: 'refresh', text: 'Multi-Agent Routing & Shared Inbox' },
+        { icon: 'trending', text: 'High-Open-Rate Automated Broadcasts' }
+      ]
+    })
+  },
+  {
+    id: 4,
+    name: 'Café Management Suite',
+    category: 'Hospitality',
+    price_label: 'Subscription Based',
+    link_url: '/products/cafe-crm',
+    description: 'An integrated management platform for modern café groups and restaurant chains. Multi-branch inventory, loyalty programs, and digital menus.',
+    features_json: JSON.stringify({
+      boostValue: '+32%',
+      boostLabel: 'Repeat Customers',
+      timeReducedValue: '-50%',
+      timeReducedLabel: 'Inventory Waste',
+      benefits: [
+        { icon: 'target', text: 'Centralized Multi-Outlet Inventory Control' },
+        { icon: 'trending', text: 'Integrated Loyalty Programs & Digital Menus' },
+        { icon: 'shield', text: 'Real-time Cross-Branch Sales Analytics' }
+      ]
+    })
+  }
+];
 
 export function AdminDashboard() {
   const [token, setToken] = useState(localStorage.getItem('admin_token'));
@@ -46,9 +123,12 @@ export function AdminDashboard() {
   const [stats, setStats] = useState<any>(null);
   const [applications, setApplications] = useState<any[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
+  const [contactFilter, setContactFilter] = useState('All');
+  const [applicationFilter, setApplicationFilter] = useState('All');
   const [bookings, setBookings] = useState<any[]>([]);
   const [blogs, setBlogs] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [adminProductCategory, setAdminProductCategory] = useState('All');
   const [team, setTeam] = useState<any[]>([]);
   const [webhooks, setWebhooks] = useState<any>(null);
   const [seoSettings, setSeoSettings] = useState<any[]>([]);
@@ -261,10 +341,10 @@ export function AdminDashboard() {
       }
 
       // PARTNER APPLICATIONS – saved by PartnerApplyPage as etromo_partner_apps
-      let resolvedApps: any[] = apps?.applications || [];
-      if (!resolvedApps.length) {
+      let rawApps: any[] = apps?.applications || [];
+      if (!rawApps.length) {
         const localApps: Record<string, any> = lsGet('etromo_partner_apps', {});
-        resolvedApps = Object.values(localApps).map((a: any, i: number) => ({
+        rawApps = Object.values(localApps).map((a: any, i: number) => ({
           id: a.id || `local-app-${i + 1}`,
           code: a.code || '',
           name: a.name || 'Applicant',
@@ -277,6 +357,19 @@ export function AdminDashboard() {
           notes: a.notes || '',
           created_at: a.date || a.created_at || new Date().toISOString()
         }));
+      }
+
+      // STRICT DEDUPLICATION: eliminate duplicate partner applications by email or code
+      const seenAppKeys = new Set<string>();
+      const resolvedApps: any[] = [];
+      for (const a of rawApps) {
+        const emailKey = (a.email || '').trim().toLowerCase();
+        const codeKey = (a.code || '').trim().toUpperCase();
+        const dedupeKey = emailKey || codeKey || `id-${a.id}`;
+        if (!seenAppKeys.has(dedupeKey)) {
+          seenAppKeys.add(dedupeKey);
+          resolvedApps.push(a);
+        }
       }
 
       // CONTACT MESSAGES – saved by contact forms as etromo_saved_contacts
@@ -297,6 +390,10 @@ export function AdminDashboard() {
       // PRODUCTS – admin-managed, saved locally as etromo_admin_products
       let resolvedProducts: any[] = prds?.products || [];
       if (!resolvedProducts.length) resolvedProducts = lsGet('etromo_admin_products', []);
+      if (!resolvedProducts.length) {
+        resolvedProducts = defaultAdminProducts;
+        try { localStorage.setItem('etromo_admin_products', JSON.stringify(defaultAdminProducts)); } catch {}
+      }
 
       // TEAM – admin-managed, saved locally as etromo_admin_team
       let resolvedTeam: any[] = tm?.team || [];
@@ -897,25 +994,164 @@ export function AdminDashboard() {
               {/* ── CONTACTS ─────────────────────────────────────────────── */}
               {tab === 'contacts' && (
                 <div>
-                  <h2 style={{ fontSize: '28px', marginBottom: '24px' }}>Contact Messages <span style={{ fontSize: '14px', opacity: 0.5, fontWeight: 400 }}>({contacts.length} total)</span></h2>
-                  <div style={{ display: 'grid', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+                    <div>
+                      <h2 style={{ fontSize: '28px', marginBottom: '4px' }}>Contact Messages <span style={{ fontSize: '14px', opacity: 0.5, fontWeight: 400 }}>({contacts.length} total)</span></h2>
+                      <p style={{ opacity: 0.6, fontSize: '14px' }}>Review inbound inquiries, update response stages, or remove processed messages.</p>
+                    </div>
+
+                    {/* Filter Pills */}
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {['All', 'New', 'Reviewed', 'Contacted'].map(f => {
+                        const isAct = contactFilter === f;
+                        const count = f === 'All' ? contacts.length : contacts.filter(c => (c.status || 'New').toLowerCase() === f.toLowerCase()).length;
+                        return (
+                          <button
+                            key={f}
+                            type="button"
+                            onClick={() => setContactFilter(f)}
+                            style={{
+                              background: isAct ? 'rgba(143,193,255,0.18)' : 'rgba(255,255,255,0.04)',
+                              border: isAct ? '1px solid rgba(143,193,255,0.45)' : '1px solid rgba(255,255,255,0.08)',
+                              color: isAct ? 'var(--sky)' : 'rgba(255,255,255,0.65)',
+                              padding: '5px 14px',
+                              borderRadius: '999px',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              fontWeight: isAct ? 600 : 400,
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            {f} ({count})
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gap: '14px' }}>
                     {contacts.length === 0 && <p style={{ opacity: 0.5 }}>No contact messages yet.</p>}
-                    {contacts.map(c => (
-                      <Card key={c.id}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', alignItems: 'flex-start', gap: '16px' }}>
-                          <div>
-                            <h4 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>{c.name}</h4>
-                            <p style={{ opacity: 0.5, fontSize: '13px' }}>{c.email}{c.company ? ` • ${c.company}` : ''}</p>
+                    {contacts
+                      .filter(c => {
+                        if (contactFilter === 'All') return true;
+                        return (c.status || 'New').toLowerCase() === contactFilter.toLowerCase();
+                      })
+                      .map(c => (
+                        <Card key={c.id}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                                <h4 style={{ fontSize: '17px', fontWeight: '600', margin: 0 }}>{c.name}</h4>
+                                <span style={{
+                                  fontSize: '11px',
+                                  padding: '3px 10px',
+                                  borderRadius: '20px',
+                                  background: (c.status === 'New' || !c.status) ? 'rgba(168,255,120,0.12)' : c.status === 'Contacted' ? 'rgba(143,193,255,0.15)' : 'rgba(255,255,255,0.06)',
+                                  color: (c.status === 'New' || !c.status) ? '#A8FF78' : c.status === 'Contacted' ? 'var(--sky)' : 'rgba(255,255,255,0.6)',
+                                  border: `1px solid ${(c.status === 'New' || !c.status) ? 'rgba(168,255,120,0.3)' : 'rgba(255,255,255,0.1)'}`
+                                }}>
+                                  {c.status || 'New'}
+                                </span>
+                              </div>
+                              <p style={{ opacity: 0.6, fontSize: '13px', margin: 0 }}>
+                                <a href={`mailto:${c.email}`} style={{ color: 'var(--sky)', textDecoration: 'none' }}>{c.email}</a>
+                                {c.company ? ` • ${c.company}` : ''}
+                                {c.phone ? ` • 📞 ${c.phone}` : ''}
+                              </p>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
+                              {/* Status Select */}
+                              <select
+                                value={c.status || 'New'}
+                                onChange={async (e) => {
+                                  const newStatus = e.target.value;
+                                  try {
+                                    await fetch(`${API}/api/admin/contacts/${c.id}`, {
+                                      method: 'PATCH',
+                                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                      body: JSON.stringify({ status: newStatus })
+                                    });
+                                  } catch {}
+                                  try {
+                                    const local = lsGet('etromo_saved_contacts', []);
+                                    const idx = local.findIndex((x: any) => x.id === c.id);
+                                    if (idx >= 0) {
+                                      local[idx].status = newStatus;
+                                      localStorage.setItem('etromo_saved_contacts', JSON.stringify(local));
+                                    }
+                                  } catch {}
+                                  loadAll();
+                                }}
+                                className="modern-input"
+                                style={{
+                                  padding: '5px 10px',
+                                  fontSize: '12px',
+                                  borderRadius: '8px',
+                                  background: '#0a0d14',
+                                  color: '#fff',
+                                  border: '1px solid rgba(255,255,255,0.15)',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <option value="New">Status: New</option>
+                                <option value="Reviewed">Status: Reviewed</option>
+                                <option value="Contacted">Status: Contacted</option>
+                                <option value="Archived">Status: Archived</option>
+                              </select>
+
+                              {/* Delete Button */}
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (window.confirm(`Permanently delete contact message from "${c.name}"?`)) {
+                                    try {
+                                      await fetch(`${API}/api/admin/contacts/${c.id}`, {
+                                        method: 'DELETE',
+                                        headers: { Authorization: `Bearer ${token}` }
+                                      });
+                                    } catch {}
+                                    try {
+                                      const local = lsGet('etromo_saved_contacts', []);
+                                      const filtered = local.filter((x: any) => x.id !== c.id && x.email !== c.email && x.created_at !== c.created_at);
+                                      localStorage.setItem('etromo_saved_contacts', JSON.stringify(filtered));
+                                    } catch {}
+                                    loadAll();
+                                  }
+                                }}
+                                style={{
+                                  background: 'rgba(255,80,80,0.1)',
+                                  border: '1px solid rgba(255,80,80,0.25)',
+                                  color: '#FF5050',
+                                  padding: '5px 12px',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer',
+                                  fontSize: '12px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  transition: 'all 0.2s'
+                                }}
+                                title="Delete this message"
+                              >
+                                <Trash2 size={13} /> Delete
+                              </button>
+                            </div>
                           </div>
-                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
-                            <span style={{ fontSize: '11px', padding: '4px 12px', borderRadius: '20px', background: c.status === 'New' || !c.status ? 'rgba(168,255,120,0.1)' : 'rgba(255,255,255,0.05)', color: c.status === 'New' || !c.status ? '#A8FF78' : 'rgba(255,255,255,0.5)', border: `1px solid ${c.status === 'New' || !c.status ? 'rgba(168,255,120,0.3)' : 'rgba(255,255,255,0.08)'}` }}>{c.status || 'New'}</span>
-                            <button onClick={async () => { await fetch(`${API}/api/admin/contacts/${c.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'Reviewed' }) }); loadAll(); }} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '4px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' }}>Mark Reviewed</button>
+
+                          <p style={{ background: 'rgba(0,0,0,0.25)', padding: '14px 16px', borderRadius: '10px', fontSize: '14px', lineHeight: 1.6, whiteSpace: 'pre-wrap', border: '1px solid rgba(255,255,255,0.04)', margin: 0 }}>
+                            {c.message}
+                          </p>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
+                            <p style={{ opacity: 0.35, fontSize: '11px', margin: 0 }}>
+                              Received: {new Date(c.created_at).toLocaleString()}
+                            </p>
+                            <a href={`mailto:${c.email}?subject=${encodeURIComponent('Following up on your Etromo inquiry')}`} style={{ fontSize: '12px', color: 'var(--sky)', textDecoration: 'none' }}>
+                              Reply via Email →
+                            </a>
                           </div>
-                        </div>
-                        <p style={{ background: 'rgba(0,0,0,0.2)', padding: '14px', borderRadius: '10px', fontSize: '14px', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{c.message}</p>
-                        <p style={{ opacity: 0.3, fontSize: '12px', marginTop: '10px' }}>{new Date(c.created_at).toLocaleString()}</p>
-                      </Card>
-                    ))}
+                        </Card>
+                      ))}
                   </div>
                 </div>
               )}
@@ -960,34 +1196,204 @@ export function AdminDashboard() {
               {/* ── APPLICATIONS ─────────────────────────────────────────── */}
               {tab === 'applications' && (
                 <div>
-                  <h2 style={{ fontSize: '28px', marginBottom: '24px' }}>Partner Applications <span style={{ fontSize: '14px', opacity: 0.5, fontWeight: 400 }}>({applications.length} total)</span></h2>
-                  <div style={{ display: 'grid', gap: '12px' }}>
-                    {applications.length === 0 && <p style={{ opacity: 0.5 }}>No partner applications yet.</p>}
-                    {applications.map(a => (
-                      <Card key={a.id}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', gap: '16px' }}>
-                          <div>
-                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
-                              <span style={{ background: a.type === 'tech' ? 'rgba(143,193,255,0.15)' : 'rgba(168,255,120,0.1)', color: a.type === 'tech' ? 'var(--sky)' : '#A8FF78', padding: '2px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase' }}>{a.type}</span>
-                              <code style={{ opacity: 0.4, fontSize: '12px' }}>{a.code}</code>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+                    <div>
+                      <h2 style={{ fontSize: '28px', marginBottom: '4px' }}>Partner Applications <span style={{ fontSize: '14px', opacity: 0.5, fontWeight: 400 }}>({applications.length} verified)</span></h2>
+                      <p style={{ opacity: 0.6, fontSize: '14px' }}>Manage agency and developer partnerships with zero duplicacy and real-time status transitions.</p>
+                    </div>
+
+                    {/* Filter Pills */}
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {['All', 'Pending', 'Under Review', 'Approved', 'Rejected'].map(f => {
+                        const isAct = applicationFilter === f;
+                        const count = f === 'All' ? applications.length : applications.filter(a => (a.status || 'Pending').toLowerCase().includes(f.toLowerCase())).length;
+                        return (
+                          <button
+                            key={f}
+                            type="button"
+                            onClick={() => setApplicationFilter(f)}
+                            style={{
+                              background: isAct ? 'rgba(143,193,255,0.18)' : 'rgba(255,255,255,0.04)',
+                              border: isAct ? '1px solid rgba(143,193,255,0.45)' : '1px solid rgba(255,255,255,0.08)',
+                              color: isAct ? 'var(--sky)' : 'rgba(255,255,255,0.65)',
+                              padding: '5px 14px',
+                              borderRadius: '999px',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              fontWeight: isAct ? 600 : 400,
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            {f} ({count})
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gap: '14px' }}>
+                    {applications.length === 0 && <p style={{ opacity: 0.5 }}>No partner applications found.</p>}
+                    {applications
+                      .filter(a => {
+                        if (applicationFilter === 'All') return true;
+                        return (a.status || 'Pending').toLowerCase().includes(applicationFilter.toLowerCase());
+                      })
+                      .map(a => (
+                        <Card key={a.id || a.code}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', gap: '16px', flexWrap: 'wrap' }}>
+                            <div>
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
+                                <span style={{ background: a.type?.toLowerCase() === 'tech' ? 'rgba(143,193,255,0.15)' : 'rgba(168,255,120,0.1)', color: a.type?.toLowerCase() === 'tech' ? 'var(--sky)' : '#A8FF78', padding: '2px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase' }}>
+                                  {a.type || 'Partner'}
+                                </span>
+                                <code style={{ opacity: 0.7, fontSize: '12px', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '4px', letterSpacing: '0.05em' }}>
+                                  {a.code}
+                                </code>
+                              </div>
+                              <h4 style={{ fontSize: '17px', fontWeight: '600', marginBottom: '4px' }}>{a.name}</h4>
+                              <p style={{ opacity: 0.6, fontSize: '13px', margin: 0 }}>
+                                <a href={`mailto:${a.email}`} style={{ color: 'var(--sky)', textDecoration: 'none' }}>{a.email}</a>
+                                {a.company ? ` • ${a.company}` : ''}
+                                {a.website ? ` • 🌐 ${a.website}` : ''}
+                              </p>
                             </div>
-                            <h4 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>{a.name}</h4>
-                            <p style={{ opacity: 0.5, fontSize: '13px' }}>{a.email}{a.company ? ` • ${a.company}` : ''}</p>
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end', flexShrink: 0 }}>
-                            <span style={{ fontSize: '12px', padding: '4px 14px', borderRadius: '20px', background: a.status === 'Approved' ? 'rgba(168,255,120,0.1)' : a.status === 'Rejected' ? 'rgba(255,80,80,0.1)' : 'rgba(255,210,100,0.1)', color: a.status === 'Approved' ? '#A8FF78' : a.status === 'Rejected' ? '#FF5050' : '#FFD264', border: `1px solid ${a.status === 'Approved' ? 'rgba(168,255,120,0.3)' : a.status === 'Rejected' ? 'rgba(255,80,80,0.3)' : 'rgba(255,210,100,0.3)'}` }}>{a.status}</span>
-                            <div style={{ display: 'flex', gap: '6px' }}>
-                              <button onClick={async () => { await fetch(`${API}/api/admin/applications/${a.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'Approved', notes: a.notes }) }); loadAll(); }} style={{ background: 'rgba(168,255,120,0.1)', border: '1px solid rgba(168,255,120,0.3)', color: '#A8FF78', padding: '5px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' }}>✓ Approve</button>
-                              <button onClick={async () => { await fetch(`${API}/api/admin/applications/${a.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'Rejected', notes: a.notes }) }); loadAll(); }} style={{ background: 'rgba(255,80,80,0.1)', border: '1px solid rgba(255,80,80,0.3)', color: '#FF5050', padding: '5px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' }}>✗ Reject</button>
-                              <button onClick={async () => { if (window.confirm('Delete this application?')) { await fetch(`${API}/api/admin/applications/${a.id}`, { method: 'DELETE' }); loadAll(); } }} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)', padding: '5px 10px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' }}>🗑</button>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end', flexShrink: 0 }}>
+                              {/* Direct Status Selector Dropdown */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '11px', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status:</span>
+                                <select
+                                  value={a.status || 'Pending'}
+                                  onChange={async (e) => {
+                                    const newStatus = e.target.value;
+                                    try {
+                                      await fetch(`${API}/api/admin/applications/${a.id}`, {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                        body: JSON.stringify({ status: newStatus, notes: a.notes })
+                                      });
+                                    } catch {}
+                                    try {
+                                      const localApps = lsGet('etromo_partner_apps', {});
+                                      if (localApps[a.code]) {
+                                        localApps[a.code].status = newStatus;
+                                        localStorage.setItem('etromo_partner_apps', JSON.stringify(localApps));
+                                      }
+                                    } catch {}
+                                    loadAll();
+                                  }}
+                                  className="modern-input"
+                                  style={{
+                                    padding: '5px 12px',
+                                    fontSize: '12px',
+                                    borderRadius: '8px',
+                                    background: '#0a0d14',
+                                    color: a.status === 'Approved' ? '#A8FF78' : a.status === 'Rejected' ? '#FF5050' : '#FFD264',
+                                    border: '1px solid rgba(255,255,255,0.18)',
+                                    cursor: 'pointer',
+                                    fontWeight: 600
+                                  }}
+                                >
+                                  <option value="Pending">Pending</option>
+                                  <option value="Under Review">Under Review</option>
+                                  <option value="Contacted">Contacted</option>
+                                  <option value="Approved">Approved</option>
+                                  <option value="Rejected">Rejected</option>
+                                </select>
+                              </div>
+
+                              {/* Quick Actions */}
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    try {
+                                      await fetch(`${API}/api/admin/applications/${a.id}`, {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                        body: JSON.stringify({ status: 'Approved', notes: a.notes })
+                                      });
+                                    } catch {}
+                                    try {
+                                      const localApps = lsGet('etromo_partner_apps', {});
+                                      if (localApps[a.code]) {
+                                        localApps[a.code].status = 'Approved';
+                                        localStorage.setItem('etromo_partner_apps', JSON.stringify(localApps));
+                                      }
+                                    } catch {}
+                                    loadAll();
+                                  }}
+                                  style={{ background: 'rgba(168,255,120,0.1)', border: '1px solid rgba(168,255,120,0.3)', color: '#A8FF78', padding: '5px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' }}
+                                >
+                                  ✓ Approve
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    try {
+                                      await fetch(`${API}/api/admin/applications/${a.id}`, {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                        body: JSON.stringify({ status: 'Rejected', notes: a.notes })
+                                      });
+                                    } catch {}
+                                    try {
+                                      const localApps = lsGet('etromo_partner_apps', {});
+                                      if (localApps[a.code]) {
+                                        localApps[a.code].status = 'Rejected';
+                                        localStorage.setItem('etromo_partner_apps', JSON.stringify(localApps));
+                                      }
+                                    } catch {}
+                                    loadAll();
+                                  }}
+                                  style={{ background: 'rgba(255,80,80,0.1)', border: '1px solid rgba(255,80,80,0.3)', color: '#FF5050', padding: '5px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' }}
+                                >
+                                  ✗ Reject
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (window.confirm(`Delete application for ${a.name} (${a.code})?`)) {
+                                      try {
+                                        await fetch(`${API}/api/admin/applications/${a.id}`, {
+                                          method: 'DELETE',
+                                          headers: { Authorization: `Bearer ${token}` }
+                                        });
+                                      } catch {}
+                                      try {
+                                        const localApps = lsGet('etromo_partner_apps', {});
+                                        delete localApps[a.code];
+                                        localStorage.setItem('etromo_partner_apps', JSON.stringify(localApps));
+                                      } catch {}
+                                      loadAll();
+                                    }
+                                  }}
+                                  style={{ background: 'rgba(255,80,80,0.1)', border: '1px solid rgba(255,80,80,0.2)', color: '#FF5050', padding: '5px 10px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' }}
+                                  title="Delete Application"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        {a.experience && <p style={{ background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '10px', fontSize: '14px', lineHeight: 1.6, marginBottom: '8px' }}>{a.experience}</p>}
-                        {a.linkedin && <a href={a.linkedin} target="_blank" rel="noreferrer" style={{ color: 'var(--sky)', fontSize: '13px' }}>LinkedIn →</a>}
-                        <p style={{ opacity: 0.3, fontSize: '12px', marginTop: '10px' }}>{new Date(a.created_at).toLocaleString()}</p>
-                      </Card>
-                    ))}
+
+                          {a.experience && (
+                            <p style={{ background: 'rgba(0,0,0,0.25)', padding: '12px 14px', borderRadius: '10px', fontSize: '14px', lineHeight: 1.6, marginBottom: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                              {a.experience}
+                            </p>
+                          )}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
+                            <p style={{ opacity: 0.35, fontSize: '11px', margin: 0 }}>
+                              Applied: {new Date(a.created_at).toLocaleString()}
+                            </p>
+                            {a.linkedin && (
+                              <a href={a.linkedin} target="_blank" rel="noreferrer" style={{ color: 'var(--sky)', fontSize: '12px', textDecoration: 'none' }}>
+                                View LinkedIn Profile →
+                              </a>
+                            )}
+                          </div>
+                        </Card>
+                      ))}
                   </div>
                 </div>
               )}
@@ -1000,29 +1406,119 @@ export function AdminDashboard() {
               {/* ── BLOGS ────────────────────────────────────────────────── */}
               {tab === 'blogs' && (
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                    <h2 style={{ fontSize: '28px' }}>Editorial & Blog</h2>
-                    <Link to="/GMCADMIN/blog/new" className="btn p" style={{ background: 'var(--sky)', color: 'var(--ink)' }}>Write Premium Article</Link>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+                    <div>
+                      <h2 style={{ fontSize: '28px', marginBottom: '4px' }}>Editorial & Technical Resources</h2>
+                      <p style={{ opacity: 0.6, fontSize: '14px' }}>Publish and manage engineering blogs, technical playbooks, and architectural whitepapers.</p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <Link to="/GMCADMIN/blog/new" className="btn p" style={{ background: 'var(--sky)', color: 'var(--ink)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        + Write Article / Resource
+                      </Link>
+                    </div>
                   </div>
-                  <Card style={{ marginBottom: '24px', padding: '32px', textAlign: 'center' }}>
-                    <h3 style={{ fontSize: '20px', marginBottom: '12px' }}>Welcome to the Premium Publisher</h3>
-                    <p style={{ opacity: 0.7, marginBottom: '24px', maxWidth: '400px', margin: '0 auto 24px' }}>Our new distraction-free editor allows you to write, preview, and publish beautiful articles.</p>
-                    <Link to="/GMCADMIN/blog/new" className="btn" style={{ borderColor: 'var(--sky)', color: 'var(--sky)' }}>Open Publisher</Link>
+
+                  <Card style={{ marginBottom: '24px', padding: '28px', textAlign: 'center', background: 'radial-gradient(circle at 50% 0%, rgba(47, 107, 255, 0.1), transparent 70%), rgba(255, 255, 255, 0.02)' }}>
+                    <h3 style={{ fontSize: '20px', marginBottom: '8px' }}>Welcome to the Premium Publisher</h3>
+                    <p style={{ opacity: 0.7, marginBottom: '20px', maxWidth: '520px', margin: '0 auto 20px', fontSize: '14px', lineHeight: 1.6 }}>
+                      Publish long-form technical playbooks, engineering whitepapers, and customer case insights with full rich-text formatting and instant website distribution.
+                    </p>
+                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                      <Link to="/GMCADMIN/blog/new" className="btn" style={{ borderColor: 'var(--sky)', color: 'var(--sky)' }}>
+                        Open Premium Publisher
+                      </Link>
+                      <a href="/blog" target="_blank" rel="noopener noreferrer" className="btn" style={{ background: 'rgba(255,255,255,0.05)', color: '#fff' }}>
+                        View Public Blog →
+                      </a>
+                      <a href="/resources" target="_blank" rel="noopener noreferrer" className="btn" style={{ background: 'rgba(255,255,255,0.05)', color: '#fff' }}>
+                        View Public Resources →
+                      </a>
+                    </div>
                   </Card>
 
                   <div style={{ display: 'grid', gap: '12px' }}>
-                    {blogs.length === 0 && <p style={{ opacity: 0.5 }}>No articles yet.</p>}
+                    {blogs.length === 0 && <p style={{ opacity: 0.5 }}>No articles or resources published yet.</p>}
                     {blogs.map(b => (
-                      <Card key={b.id} style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
-                        {b.image_url && <img src={b.image_url} alt="" style={{ width: '100px', height: '70px', objectFit: 'cover', borderRadius: '10px', flexShrink: 0 }} />}
-                        <div style={{ flexGrow: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', gap: '8px', marginBottom: '6px' }}>
-                            <span style={{ background: 'rgba(143,193,255,0.1)', color: 'var(--sky)', padding: '2px 10px', borderRadius: '20px', fontSize: '11px' }}>{b.category || 'General'}</span>
+                      <Card key={b.id || b.slug} style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        {b.image_url ? (
+                          <img src={b.image_url} alt="" style={{ width: '110px', height: '75px', objectFit: 'cover', borderRadius: '10px', flexShrink: 0 }} />
+                        ) : (
+                          <div style={{ width: '110px', height: '75px', background: 'rgba(255,255,255,0.05)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: 'var(--sky)', fontSize: '24px' }}>
+                            📄
                           </div>
-                          <h4 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>{b.title}</h4>
-                          <p style={{ opacity: 0.4, fontSize: '12px' }}>{new Date(b.published_date).toLocaleDateString()} · /{b.slug}</p>
+                        )}
+                        <div style={{ flexGrow: 1, minWidth: '240px' }}>
+                          <div style={{ display: 'flex', gap: '8px', marginBottom: '6px', alignItems: 'center' }}>
+                            <span style={{ background: 'rgba(143,193,255,0.12)', color: 'var(--sky)', padding: '2px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 600 }}>
+                              {b.category || 'Technology'}
+                            </span>
+                            <span style={{ fontSize: '11px', opacity: 0.45 }}>
+                              {b.published_date ? new Date(b.published_date).toLocaleDateString() : 'Draft'}
+                            </span>
+                          </div>
+                          <h4 style={{ fontSize: '17px', fontWeight: '600', marginBottom: '4px' }}>{b.title}</h4>
+                          <p style={{ opacity: 0.45, fontSize: '12px', margin: 0, fontFamily: 'var(--mono)' }}>
+                            URL: /blog/{b.slug}
+                          </p>
                         </div>
-                        <button onClick={async () => { if (window.confirm('Delete article?')) { try { await fetch(`${API}/api/admin/blogs/${b.id}`, { method: 'DELETE' }); } catch {} try { const ex = JSON.parse(localStorage.getItem('etromo_admin_blogs') || '[]'); localStorage.setItem('etromo_admin_blogs', JSON.stringify(ex.filter((x: any) => x.id !== b.id))); } catch {} loadAll(); } }} style={{ background: 'rgba(255,80,80,0.1)', border: '1px solid rgba(255,80,80,0.2)', color: '#FF5050', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', flexShrink: 0 }}>Delete</button>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginLeft: 'auto' }}>
+                          <a
+                            href={`/blog/${b.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              background: 'rgba(143,193,255,0.1)',
+                              border: '1px solid rgba(143,193,255,0.25)',
+                              color: 'var(--sky)',
+                              padding: '6px 14px',
+                              borderRadius: '8px',
+                              textDecoration: 'none',
+                              fontSize: '12px',
+                              fontWeight: 500
+                            }}
+                          >
+                            Read Live ↗
+                          </a>
+                          <Link
+                            to={`/GMCADMIN/blog/edit/${b.slug}`}
+                            style={{
+                              background: 'rgba(143,193,255,0.1)',
+                              border: '1px solid rgba(143,193,255,0.25)',
+                              color: 'var(--sky)',
+                              padding: '6px 14px',
+                              borderRadius: '8px',
+                              textDecoration: 'none',
+                              fontSize: '12px',
+                              marginRight: '8px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            Edit ↗
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (window.confirm(`Delete article "${b.title}"?`)) {
+                                try {
+                                  await fetch(`${API}/api/admin/blogs/${b.id}`, {
+                                    method: 'DELETE',
+                                    headers: { Authorization: `Bearer ${token}` }
+                                  });
+                                } catch {}
+                                try {
+                                  const ex = JSON.parse(localStorage.getItem('etromo_admin_blogs') || '[]');
+                                  localStorage.setItem('etromo_admin_blogs', JSON.stringify(ex.filter((x: any) => x.id !== b.id && x.slug !== b.slug)));
+                                } catch {}
+                                loadAll();
+                              }
+                            }}
+                            style={{ background: 'rgba(255,80,80,0.1)', border: '1px solid rgba(255,80,80,0.2)', color: '#FF5050', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', flexShrink: 0 }}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </Card>
                     ))}
                   </div>
@@ -1160,13 +1656,22 @@ export function AdminDashboard() {
                             />
                           </div>
                           <div>
-                            <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: '600', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Category</label>
+                            <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: '600', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Industry / Category</label>
                             <input
+                              list="industry-categories-list"
                               value={productForm.category}
                               onChange={e => setProductForm({ ...productForm, category: e.target.value })}
-                              placeholder="e.g. CRM Software"
+                              placeholder="e.g. Real Estate, Education, Hospitality"
                               className="modern-input"
+                              required
                             />
+                            <datalist id="industry-categories-list">
+                              <option value="Real Estate" />
+                              <option value="Education" />
+                              <option value="Hospitality" />
+                              <option value="Communication & AI" />
+                              <option value="Retail & eCommerce" />
+                            </datalist>
                           </div>
                         </div>
 
@@ -1382,38 +1887,89 @@ export function AdminDashboard() {
                   </div>
 
                   {/* ── CATALOG OF EXISTING PRODUCTS ─────────────────────────── */}
-                  <h3 style={{ fontSize: '20px', margin: '32px 0 16px', fontWeight: '600' }}>Active Listed Products ({products.length})</h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '32px 0 16px', flexWrap: 'wrap', gap: '12px' }}>
+                    <h3 style={{ fontSize: '20px', fontWeight: '600', margin: 0 }}>Active Listed Products ({products.length})</h3>
+                    {/* Industry Category Filter Pills */}
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {['All', 'Real Estate', 'Education', 'Hospitality', 'Communication & AI', 'Retail & eCommerce'].map(cat => {
+                        const isAct = adminProductCategory === cat;
+                        const matchFn = (p: any) => {
+                          if (cat === 'All') return true;
+                          const c = (p.category || '').toLowerCase();
+                          if (cat === 'Real Estate') return c.includes('real') || c.includes('estate') || c.includes('property');
+                          if (cat === 'Education') return c.includes('education') || c.includes('academy') || c.includes('school');
+                          if (cat === 'Hospitality') return c.includes('hospitality') || c.includes('cafe') || c.includes('café');
+                          if (cat === 'Communication & AI') return c.includes('communication') || c.includes('whatsapp') || c.includes('ai');
+                          if (cat === 'Retail & eCommerce') return c.includes('retail') || c.includes('ecommerce');
+                          return c.includes(cat.toLowerCase());
+                        };
+                        const count = products.filter(matchFn).length;
+                        return (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => setAdminProductCategory(cat)}
+                            style={{
+                              background: isAct ? 'rgba(143,193,255,0.18)' : 'rgba(255,255,255,0.04)',
+                              border: isAct ? '1px solid rgba(143,193,255,0.45)' : '1px solid rgba(255,255,255,0.08)',
+                              color: isAct ? 'var(--sky)' : 'rgba(255,255,255,0.65)',
+                              padding: '5px 12px',
+                              borderRadius: '999px',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              fontWeight: isAct ? 600 : 400,
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            {cat} ({count})
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
                     {products.length === 0 && <p style={{ opacity: 0.5 }}>No products yet.</p>}
-                    {products.map(p => (
-                      <div key={p.id} style={{ display: 'flex', flexDirection: 'column' }}>
-                        <ProductCardItem product={p} />
-                        <div style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'flex-end' }}>
-                          <button
-                            onClick={() => handleEditProduct(p)}
-                            style={{ background: 'rgba(143,193,255,0.1)', border: '1px solid rgba(143,193,255,0.3)', color: 'var(--sky)', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                          >
-                            <Edit2 size={13} /> Edit
-                          </button>
-                          <button
-                            onClick={async () => {
-                              if (window.confirm('Delete this product from catalog?')) {
-                                try { await fetch(`${API}/api/admin/products/${p.id}`, { method: 'DELETE' }); } catch {}
-                                // Also remove from localStorage
-                                try {
-                                  const existing = JSON.parse(localStorage.getItem('etromo_admin_products') || '[]');
-                                  localStorage.setItem('etromo_admin_products', JSON.stringify(existing.filter((x: any) => x.id !== p.id)));
-                                } catch {}
-                                loadAll();
-                              }
-                            }}
-                            style={{ background: 'rgba(255,80,80,0.1)', border: '1px solid rgba(255,80,80,0.2)', color: '#FF5050', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                          >
-                            <Trash2 size={13} /> Delete
-                          </button>
+                    {products
+                      .filter(p => {
+                        if (adminProductCategory === 'All') return true;
+                        const c = (p.category || '').toLowerCase();
+                        if (adminProductCategory === 'Real Estate') return c.includes('real') || c.includes('estate') || c.includes('property');
+                        if (adminProductCategory === 'Education') return c.includes('education') || c.includes('academy') || c.includes('school');
+                        if (adminProductCategory === 'Hospitality') return c.includes('hospitality') || c.includes('cafe') || c.includes('café');
+                        if (adminProductCategory === 'Communication & AI') return c.includes('communication') || c.includes('whatsapp') || c.includes('ai');
+                        if (adminProductCategory === 'Retail & eCommerce') return c.includes('retail') || c.includes('ecommerce');
+                        return c.includes(adminProductCategory.toLowerCase());
+                      })
+                      .map(p => (
+                        <div key={p.id} style={{ display: 'flex', flexDirection: 'column' }}>
+                          <ProductCardItem product={p} />
+                          <div style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'flex-end' }}>
+                            <button
+                              onClick={() => handleEditProduct(p)}
+                              style={{ background: 'rgba(143,193,255,0.1)', border: '1px solid rgba(143,193,255,0.3)', color: 'var(--sky)', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                            >
+                              <Edit2 size={13} /> Edit
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (window.confirm('Delete this product from catalog?')) {
+                                  try { await fetch(`${API}/api/admin/products/${p.id}`, { method: 'DELETE' }); } catch {}
+                                  // Also remove from localStorage
+                                  try {
+                                    const existing = JSON.parse(localStorage.getItem('etromo_admin_products') || '[]');
+                                    localStorage.setItem('etromo_admin_products', JSON.stringify(existing.filter((x: any) => x.id !== p.id)));
+                                  } catch {}
+                                  loadAll();
+                                }
+                              }}
+                              style={{ background: 'rgba(255,80,80,0.1)', border: '1px solid rgba(255,80,80,0.2)', color: '#FF5050', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                            >
+                              <Trash2 size={13} /> Delete
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 </div>
               )}

@@ -1,185 +1,389 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Search } from 'lucide-react';
+import { Search, ArrowRight, RefreshCw, Loader2 } from 'lucide-react';
+import PageSEO from '../components/layout/PageSEO';
 import './Blog.css';
 
-// Mock Data for realistic UI
-const MOCK_BLOGS = [
-  {
-    id: '1',
-    slug: 'future-of-ai-in-real-estate',
-    title: 'The Future of AI in Real Estate Operations',
-    excerpt: 'How artificial intelligence is transforming property management, lead qualification, and customer follow-ups in 2026.',
-    category: 'Technology',
-    image_url: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
-    published_date: '2026-10-05T10:00:00Z',
-    author: { name: 'Sarah Jenkins', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&q=80' },
-    readTime: '6 min read'
-  },
-  {
-    id: '2',
-    slug: 'design-systems-scale',
-    title: 'Scaling Design Systems Across Enterprise Teams',
-    excerpt: 'A comprehensive guide to building, maintaining, and evolving design systems that empower developers without stifling creativity.',
-    category: 'Design',
-    image_url: 'https://images.unsplash.com/photo-1618761714954-0b8cd0026356?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
-    published_date: '2026-10-01T10:00:00Z',
-    author: { name: 'David Chen', avatar: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&q=80' },
-    readTime: '8 min read'
-  },
-  {
-    id: '3',
-    slug: 'automation-workflows',
-    title: '5 Automation Workflows That Will Save You 10 Hours a Week',
-    excerpt: 'Stop doing manual data entry. These five simple Zapier and n8n workflows will revolutionize how your team operates.',
-    category: 'Productivity',
-    image_url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
-    published_date: '2026-09-28T10:00:00Z',
-    author: { name: 'Elena Rodriguez', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&q=80' },
-    readTime: '5 min read'
-  }
-];
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-const CATEGORIES = ['All', 'Technology', 'Design', 'Business', 'AI', 'Tutorials'];
+interface BlogItem {
+  id: string | number;
+  slug: string;
+  title: string;
+  subtitle?: string;
+  excerpt?: string;
+  category: string;
+  image_url?: string;
+  image_alt?: string;
+  published_date?: string;
+  updated_at?: string;
+  author?: { name: string; avatar?: string; role?: string };
+  author_id?: string;
+  readTime?: string;
+  featured?: boolean;
+  tags?: string[];
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const CATEGORIES = ['All', 'Technology', 'Architecture Playbook', 'Security & Compliance',
+                    'Messaging & AI', 'Autonomous Systems', 'Design', 'Business', 'AI', 'Productivity'];
+
+const ITEMS_PER_PAGE = 9;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatDate(iso?: string) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch { return ''; }
+}
+
+function authorName(b: BlogItem) {
+  return b.author?.name || b.author_id || 'Editorial Team';
+}
+
+function authorAvatar(b: BlogItem) {
+  return b.author?.avatar || '/logo.png';
+}
+
+// ─── Skeleton card ────────────────────────────────────────────────────────────
+
+function SkeletonCard() {
+  return (
+    <div className="bl-card" style={{ pointerEvents: 'none' }}>
+      <div className="bl-card-img-wrap">
+        <div className="bl-skeleton" style={{ width: '100%', height: '100%' }} />
+      </div>
+      <div className="bl-card-body" style={{ gap: 12 }}>
+        <div className="bl-skeleton" style={{ height: 14, width: '40%' }} />
+        <div className="bl-skeleton" style={{ height: 20, width: '90%' }} />
+        <div className="bl-skeleton" style={{ height: 20, width: '75%' }} />
+        <div className="bl-skeleton" style={{ height: 14, width: '55%', marginTop: 8 }} />
+      </div>
+    </div>
+  );
+}
+
+// ─── Article Card ─────────────────────────────────────────────────────────────
+
+function ArticleCard({ blog }: { blog: BlogItem }) {
+  return (
+    <Link to={`/blog/${blog.slug}`} className="bl-card">
+      <div className="bl-card-img-wrap">
+        <img
+          src={blog.image_url || 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=75'}
+          alt={blog.image_alt || blog.title}
+          className="bl-card-img"
+          loading="lazy"
+          width={800}
+          height={450}
+          onError={e => { e.currentTarget.src = 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=75'; }}
+        />
+      </div>
+      <div className="bl-card-body">
+        <span className="bl-badge">{blog.category}</span>
+        <h3>{blog.title}</h3>
+        {blog.excerpt && <p className="bl-excerpt">{blog.excerpt}</p>}
+        <div className="bl-meta" style={{ marginTop: 'auto' }}>
+          <img
+            src={authorAvatar(blog)}
+            alt={authorName(blog)}
+            width={28}
+            height={28}
+            onError={e => { e.currentTarget.src = '/logo.png'; }}
+          />
+          <span className="bl-meta-name">{authorName(blog)}</span>
+          <span className="bl-meta-dot">·</span>
+          <time dateTime={blog.published_date}>{formatDate(blog.published_date)}</time>
+          {blog.readTime && <><span className="bl-meta-dot">·</span><span>{blog.readTime}</span></>}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function BlogHome() {
-  const [blogs, setBlogs] = useState(MOCK_BLOGS);
+  const [blogs, setBlogs] = useState<BlogItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
 
-  // Fetch blogs from API if available
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // ── Fetch ────────────────────────────────────────────────────────────────────
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError('');
+
     fetch('/api/blogs')
-      .then(res => res.json())
-      .then(data => {
-        if (data.blogs && data.blogs.length > 0) {
-          setBlogs(data.blogs);
-        }
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
       })
-      .catch(console.error);
+      .then(data => {
+        if (cancelled) return;
+        if (data.blogs && Array.isArray(data.blogs)) {
+          setBlogs(data.blogs);
+        } else {
+          setBlogs([]);
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        if (cancelled) return;
+        setError('Could not load articles. Please try again.');
+        setLoading(false);
+        console.warn('Blog fetch error:', err);
+      });
+
+    return () => { cancelled = true; };
   }, []);
 
-  const featuredBlog = blogs[0];
-  const regularBlogs = blogs.slice(1);
+  // Reset page when filters change
+  useEffect(() => { setPage(1); }, [activeCategory, search]);
 
-  const filteredBlogs = regularBlogs.filter(b => 
-    (activeCategory === 'All' || b.category === activeCategory) &&
-    b.title.toLowerCase().includes(search.toLowerCase())
-  );
+  // ── Derived data ─────────────────────────────────────────────────────────────
+
+  const isFiltering = activeCategory !== 'All' || search.trim() !== '';
+
+  const filtered = blogs.filter(b => {
+    const q = search.toLowerCase();
+    const matchCat = activeCategory === 'All' || b.category === activeCategory;
+    const matchSearch = !q ||
+      (b.title || '').toLowerCase().includes(q) ||
+      (b.excerpt || '').toLowerCase().includes(q) ||
+      (b.category || '').toLowerCase().includes(q);
+    return matchCat && matchSearch;
+  });
+
+  // Featured = first item marked featured, or just the first blog (only when not filtering)
+  const featured = !isFiltering ? (blogs.find(b => b.featured) || blogs[0]) : null;
+  const gridBlogs = !isFiltering
+    ? filtered.filter(b => b.id !== featured?.id)
+    : filtered;
+
+  const pageCount = Math.ceil(gridBlogs.length / ITEMS_PER_PAGE);
+  const paginated = gridBlogs.slice(0, page * ITEMS_PER_PAGE);
+  const hasMore = page < pageCount;
+
+  // ── JSON-LD ──────────────────────────────────────────────────────────────────
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Blog',
+    'name': 'Etromo Engineering Blog',
+    'description': 'Technical playbooks, system architectures, and workflow automation insights.',
+    'url': 'https://www.etromo.com/blog',
+    'publisher': {
+      '@type': 'Organization',
+      'name': 'Etromo',
+      'logo': { '@type': 'ImageObject', 'url': 'https://www.etromo.com/logo.png' }
+    }
+  };
+
+  // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
     <div className="blog-light-theme">
-      {/* Blog Navigation / Header could go here, overriding the main dark nav */}
-      
-      <div className="blog-container">
-      {/* Hero Section */}
-      <header className="hero" id="top">
-        <div className="orb"></div>
-        <div className="flute"></div>
-        <div className="horizon"></div>
-        <div className="wrap" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', position: 'relative', zIndex: 2 }}>
-          <span style={{ display: 'inline-block', padding: '6px 16px', borderRadius: '20px', background: 'rgba(143, 193, 255, 0.1)', color: 'var(--sky)', fontSize: '13px', fontWeight: '600', letterSpacing: '1px', textTransform: 'uppercase', border: '1px solid rgba(143, 193, 255, 0.2)', marginBottom: '24px', fontFamily: 'var(--font-mono)' }}>Insights & Ideas</span>
-          <h1 style={{ fontSize: 'clamp(36px, 5vw, 64px)', maxWidth: '20ch', lineHeight: 1.1, marginBottom: '24px' }}>Ideas Worth <em>Your Time</em></h1>
-          <p className="sub" style={{ margin: '0 auto 40px', maxWidth: '600px' }}>
-            Insights on engineering, design, and building operational software ecosystems.
+      <PageSEO
+        title="Engineering Blog — Insights, Playbooks & Research"
+        description="Technical playbooks, system architecture deep-dives, and workflow automation insights from the Etromo engineering group."
+        url="/blog"
+        type="website"
+        jsonLd={jsonLd}
+      />
+
+      {/* ── Hero ── */}
+      <header className="bl-index-hero hero">
+        <div className="orb" style={{ width: 480, height: 480, top: -120, right: -80, background: 'radial-gradient(circle, rgba(143,193,255,0.12) 0%, transparent 70%)' }} />
+        <div className="bl-wrap">
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '5px 14px', borderRadius: 999, background: 'rgba(143,193,255,0.08)', border: '1px solid rgba(143,193,255,0.18)', color: 'var(--bl-accent)', fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 28 }}>
+            Ideas Worth Your Time
+          </div>
+          <h1>Engineering Insights<br />&amp; Architecture Playbooks</h1>
+          <p style={{ marginTop: 16 }}>
+            Technical deep-dives, system design frameworks, and operational research from the Etromo engineering group.
           </p>
         </div>
       </header>
 
-        {/* Categories & Search */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', flexWrap: 'wrap', gap: '20px' }}>
-          <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
+      {/* ── Filters ── */}
+      <div className="bl-wrap" style={{ paddingTop: 48, paddingBottom: 0 }}>
+        <div style={{ display: 'flex', gap: 16, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', marginBottom: 48 }}>
+          <nav className="bl-cat-bar" aria-label="Category filter">
             {CATEGORIES.map(cat => (
-              <button 
+              <button
                 key={cat}
+                className={`bl-cat-btn${activeCategory === cat ? ' active' : ''}`}
                 onClick={() => setActiveCategory(cat)}
-                style={{ 
-                  padding: '8px 20px', 
-                  borderRadius: '99px', 
-                  border: '1px solid var(--blog-border)', 
-                  background: activeCategory === cat ? 'var(--blog-text-main)' : 'var(--blog-surface)',
-                  color: activeCategory === cat ? 'white' : 'var(--blog-text-main)',
-                  cursor: 'pointer',
-                  fontWeight: 500,
-                  transition: 'all 0.2s'
-                }}
+                aria-pressed={activeCategory === cat}
               >
                 {cat}
               </button>
             ))}
-          </div>
-          <div style={{ position: 'relative' }}>
-            <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--blog-text-muted)' }} />
-            <input 
-              type="text" 
-              placeholder="Search articles..." 
+          </nav>
+
+          <div className="bl-search-wrap">
+            <Search size={15} aria-hidden="true" />
+            <input
+              ref={searchRef}
+              type="search"
+              className="bl-search"
+              placeholder="Search articles…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              style={{
-                padding: '12px 16px 12px 48px',
-                borderRadius: '99px',
-                border: '1px solid var(--blog-border)',
-                outline: 'none',
-                width: '300px',
-                fontSize: '15px'
-              }}
+              aria-label="Search articles"
+              id="blog-search"
             />
           </div>
         </div>
 
-        {/* Featured Story */}
-        {featuredBlog && activeCategory === 'All' && !search && (
-          <Link to={`/blog/${featuredBlog.slug}`} className="blog-featured">
-            <img src={featuredBlog.image_url} alt={featuredBlog.title} className="blog-featured-img" />
-            <div className="blog-featured-content">
-              <span className="blog-badge">{featuredBlog.category}</span>
-              <h2>{featuredBlog.title}</h2>
-              <p className="excerpt">{featuredBlog.excerpt}</p>
-              <div className="blog-meta">
-                <img src={featuredBlog.author?.avatar || 'https://via.placeholder.com/100'} alt={featuredBlog.author?.name} />
-                <div>
-                  <strong style={{ display: 'block', color: 'var(--blog-text-main)' }}>{featuredBlog.author?.name || 'Editorial Team'}</strong>
-                  <span>{new Date(featuredBlog.published_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · {featuredBlog.readTime}</span>
+        {/* ── Loading ── */}
+        {loading && (
+          <div>
+            {!isFiltering && (
+              <div className="bl-featured" style={{ pointerEvents: 'none', marginBottom: 72 }}>
+                <div className="bl-featured-img-wrap"><div className="bl-skeleton" style={{ width: '100%', height: '100%' }} /></div>
+                <div className="bl-featured-body" style={{ gap: 16 }}>
+                  <div className="bl-skeleton" style={{ height: 16, width: '30%' }} />
+                  <div className="bl-skeleton" style={{ height: 32, width: '90%' }} />
+                  <div className="bl-skeleton" style={{ height: 32, width: '70%' }} />
+                  <div className="bl-skeleton" style={{ height: 14, width: '50%', marginTop: 8 }} />
                 </div>
+              </div>
+            )}
+            <div className="bl-grid">
+              {[1,2,3,4,5,6].map(i => <SkeletonCard key={i} />)}
+            </div>
+          </div>
+        )}
+
+        {/* ── Error ── */}
+        {!loading && error && (
+          <div className="bl-state-box">
+            <p>{error}</p>
+            <button
+              className="bl-state-reset"
+              onClick={() => window.location.reload()}
+            >
+              <RefreshCw size={14} /> Retry
+            </button>
+          </div>
+        )}
+
+        {/* ── Empty ── */}
+        {!loading && !error && filtered.length === 0 && (
+          <div className="bl-state-box">
+            <p>No articles match your current filters.</p>
+            <button
+              className="bl-state-reset"
+              onClick={() => { setActiveCategory('All'); setSearch(''); searchRef.current?.focus(); }}
+            >
+              <RefreshCw size={14} /> Clear filters
+            </button>
+          </div>
+        )}
+
+        {/* ── Featured Article ── */}
+        {!loading && !error && featured && !isFiltering && (
+          <Link to={`/blog/${featured.slug}`} className="bl-featured" aria-label={`Read featured article: ${featured.title}`}>
+            <div className="bl-featured-img-wrap">
+              <img
+                src={featured.image_url || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1200&q=80'}
+                alt={featured.image_alt || featured.title}
+                className="bl-featured-img"
+                loading="eager"
+                fetchPriority="high"
+                width={1200}
+                height={900}
+                onError={e => { e.currentTarget.src = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1200&q=80'; }}
+              />
+            </div>
+            <div className="bl-featured-body">
+              <div className="bl-featured-eyebrow">
+                <span className="bl-badge">{featured.category}</span>
+                {featured.readTime && <span style={{ fontSize: 12, color: 'var(--bl-faint)' }}>{featured.readTime}</span>}
+              </div>
+              <h2>{featured.title}</h2>
+              {featured.excerpt && <p className="bl-excerpt">{featured.excerpt}</p>}
+              <div className="bl-meta">
+                <img
+                  src={authorAvatar(featured)}
+                  alt={authorName(featured)}
+                  width={28}
+                  height={28}
+                  onError={e => { e.currentTarget.src = '/logo.png'; }}
+                />
+                <span className="bl-meta-name">{authorName(featured)}</span>
+                <span className="bl-meta-dot">·</span>
+                <time dateTime={featured.published_date}>{formatDate(featured.published_date)}</time>
+              </div>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--bl-accent)', fontSize: 13, fontWeight: 600, marginTop: 4 }}>
+                Read article <ArrowRight size={14} />
               </div>
             </div>
           </Link>
         )}
 
-        {/* Latest Articles Grid */}
-        <h3 style={{ fontSize: '24px', fontWeight: 600, marginBottom: '24px', borderBottom: '1px solid var(--blog-border)', paddingBottom: '16px' }}>Latest Articles</h3>
-        <div className="blog-grid">
-          {filteredBlogs.map(blog => (
-            <Link to={`/blog/${blog.slug}`} key={blog.id} className="blog-card">
-              <div className="blog-card-img-wrapper">
-                <img src={blog.image_url} alt={blog.title} className="blog-card-img" />
-              </div>
-              <div className="blog-card-content">
-                <span className="blog-badge">{blog.category}</span>
-                <h3>{blog.title}</h3>
-                <p className="excerpt">{blog.excerpt}</p>
-                <div className="blog-meta">
-                  <img src={blog.author?.avatar || 'https://via.placeholder.com/100'} alt={blog.author?.name} />
-                  <div>
-                    <strong style={{ display: 'block', color: 'var(--blog-text-main)' }}>{blog.author?.name || 'Editorial Team'}</strong>
-                    <span>{new Date(blog.published_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+        {/* ── Article Grid ── */}
+        {!loading && !error && paginated.length > 0 && (
+          <>
+            <div className="bl-section-header">
+              <h2 id="articles">{isFiltering ? `Results (${filtered.length})` : 'Latest Articles'}</h2>
+              {!isFiltering && blogs.length > 0 && <span>{blogs.length} articles</span>}
+            </div>
 
-        {/* Newsletter Subscription */}
-        <div className="blog-newsletter">
-          <h3>Get the best insights delivered to your inbox</h3>
-          <p>Join 10,000+ professionals receiving our weekly newsletter.</p>
-          <form onSubmit={e => e.preventDefault()}>
-            <input type="email" placeholder="Enter your email address" required />
-            <button type="submit">Subscribe</button>
-          </form>
-        </div>
+            <main aria-label="Article list">
+              <div className="bl-grid">
+                {paginated.map(b => <ArticleCard key={`${b.id}-${b.slug}`} blog={b} />)}
+              </div>
+            </main>
 
+            {/* Load more */}
+            {hasMore && (
+              <div style={{ textAlign: 'center', marginBottom: 80 }}>
+                <button
+                  onClick={() => setPage(p => p + 1)}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                    padding: '12px 28px', borderRadius: 10,
+                    border: '1px solid var(--bl-border)',
+                    background: 'var(--bl-surface)',
+                    color: 'var(--bl-muted)',
+                    fontSize: 14, fontWeight: 500,
+                    cursor: 'pointer',
+                    fontFamily: 'var(--bl-sans)',
+                    transition: 'border-color 0.2s, color 0.2s'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--bl-accent)'; e.currentTarget.style.color = 'var(--bl-accent)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--bl-border)'; e.currentTarget.style.color = 'var(--bl-muted)'; }}
+                >
+                  <Loader2 size={15} style={{ display: 'none' }} />
+                  Load more articles <ArrowRight size={14} />
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── Newsletter ── */}
+        {!loading && (
+          <div className="bl-newsletter">
+            <h3>Stay ahead of the build</h3>
+            <p>Engineering deep-dives and architecture playbooks delivered to your inbox.</p>
+            <form onSubmit={e => e.preventDefault()}>
+              <input type="email" placeholder="your@email.com" aria-label="Email address" required />
+              <button type="submit">Subscribe</button>
+            </form>
+          </div>
+        )}
       </div>
     </div>
   );

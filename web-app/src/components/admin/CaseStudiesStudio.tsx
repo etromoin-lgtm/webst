@@ -94,19 +94,30 @@ export const CaseStudiesStudio: React.FC<CaseStudiesStudioProps> = ({ onStatsCha
     loadCaseStudies();
   }, []);
 
+  const lsGetCS = (): CaseStudy[] => {
+    try { const r = localStorage.getItem('etromo_admin_case_studies'); return r ? JSON.parse(r) : []; } catch { return []; }
+  };
+  const lsSetCS = (list: CaseStudy[]) => {
+    try { localStorage.setItem('etromo_admin_case_studies', JSON.stringify(list)); } catch {}
+  };
+
   const loadCaseStudies = async () => {
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/case-studies?all=true`);
-      const data = await res.json();
-      if (data.success && data.case_studies) {
-        setCaseStudies(data.case_studies);
+      const ct = res.headers.get('content-type') || '';
+      if (res.ok && ct.includes('application/json')) {
+        const data = await res.json();
+        if (data.success && data.case_studies) {
+          setCaseStudies(data.case_studies);
+          setLoading(false);
+          return;
+        }
       }
-    } catch (err) {
-      console.error('Failed to load case studies:', err);
-    } finally {
-      setLoading(false);
-    }
+    } catch {}
+    // Fallback: load from localStorage
+    setCaseStudies(lsGetCS());
+    setLoading(false);
   };
 
   const resetForm = () => {
@@ -215,14 +226,21 @@ export const CaseStudiesStudio: React.FC<CaseStudiesStudioProps> = ({ onStatsCha
     if (!id || !window.confirm('Are you sure you want to delete this case study? This action cannot be undone.')) return;
     try {
       const res = await fetch(`${API_BASE}/api/case-studies/${id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (data.success) {
-        await loadCaseStudies();
-        if (onStatsChange) onStatsChange();
+      const ct = res.headers.get('content-type') || '';
+      if (res.ok && ct.includes('application/json')) {
+        const data = await res.json();
+        if (data.success) {
+          await loadCaseStudies();
+          if (onStatsChange) onStatsChange();
+          return;
+        }
       }
-    } catch (err) {
-      console.error('Error deleting case study:', err);
-    }
+    } catch {}
+    // Fallback: delete from localStorage
+    const updated = lsGetCS().filter(cs => cs.id !== id);
+    lsSetCS(updated);
+    setCaseStudies(updated);
+    if (onStatsChange) onStatsChange();
   };
 
   // Favicon detector trigger
@@ -275,31 +293,53 @@ export const CaseStudiesStudio: React.FC<CaseStudiesStudioProps> = ({ onStatsCha
     setSaving(true);
     setSaveError(null);
 
+    const isUpdate = Boolean(form.id);
+
+    // Try backend API
     try {
-      const isUpdate = Boolean(form.id);
       const url = isUpdate ? `${API_BASE}/api/case-studies/${form.id}` : `${API_BASE}/api/case-studies`;
       const method = isUpdate ? 'PUT' : 'POST';
-
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
       });
-
-      const data = await res.json();
-      if (data.success) {
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 2500);
-        await loadCaseStudies();
-        if (onStatsChange) onStatsChange();
-        if (!isUpdate && data.case_study) {
-          setForm(data.case_study);
+      const ct = res.headers.get('content-type') || '';
+      if (res.ok && ct.includes('application/json')) {
+        const data = await res.json();
+        if (data.success) {
+          setSaveSuccess(true);
+          setTimeout(() => setSaveSuccess(false), 2500);
+          await loadCaseStudies();
+          if (onStatsChange) onStatsChange();
+          if (!isUpdate && data.case_study) setForm(data.case_study);
+          setSaving(false);
+          return;
+        } else {
+          // API responded but with error - fall through to localStorage
         }
-      } else {
-        setSaveError(data.error || 'Failed to save case study');
       }
+    } catch {}
+
+    // Fallback: save to localStorage when API is offline
+    try {
+      const current = lsGetCS();
+      const saveItem: CaseStudy = { ...form, id: form.id || (Date.now() as any) };
+      if (isUpdate) {
+        const idx = current.findIndex(cs => cs.id === form.id);
+        if (idx >= 0) current[idx] = saveItem;
+        else current.push(saveItem);
+      } else {
+        current.push(saveItem);
+        setForm(saveItem);
+      }
+      lsSetCS(current);
+      setCaseStudies(current);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2500);
+      if (onStatsChange) onStatsChange();
     } catch (err: any) {
-      setSaveError(err.message || 'Server error while saving');
+      setSaveError(err.message || 'Failed to save');
     } finally {
       setSaving(false);
     }

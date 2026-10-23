@@ -15,8 +15,15 @@ function safeEqual(a, b) {
 // Admin Auth
 const login = (req, res) => {
   const { username, password } = req.body;
-  const expectedUser = process.env.ADMIN_USERNAME || 'admin';
-  const expectedPass = process.env.ADMIN_PASSWORD || 'admin123';
+  const expectedUser = process.env.ADMIN_USERNAME;
+  const expectedPass = process.env.ADMIN_PASSWORD;
+
+  if (!expectedUser || !expectedPass) {
+    return res.status(500).json({
+      success: false,
+      error: 'Admin credentials not configured. Set ADMIN_USERNAME and ADMIN_PASSWORD.'
+    });
+  }
 
   if (safeEqual(username, expectedUser) && safeEqual(password, expectedPass)) {
     if (typeof req.recordLoginSuccess === 'function') {
@@ -111,6 +118,15 @@ const updateContact = async (req, res) => {
   }
 };
 
+const deleteContact = async (req, res) => {
+  try {
+    await db.run('DELETE FROM contacts WHERE id = ?', [req.params.id]);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+};
+
 // Bookings
 const getBookings = async (req, res) => {
   try {
@@ -165,6 +181,7 @@ module.exports = {
   deleteApplication,
   getContacts,
   updateContact,
+  deleteContact,
   getBookings,
   updateBooking,
   getStats

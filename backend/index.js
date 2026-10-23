@@ -20,6 +20,7 @@ const settingsRoutes = require('./src/routes/settingsRoutes');
 const uploadRoutes = require('./src/routes/uploadRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const caseStudiesRoutes = require('./src/routes/caseStudiesRoutes');
+const resourceRoutes = require('./src/routes/resourceRoutes');
 const portalRoutes = require('./src/routes/portalRoutes');
 
 const app = express();
@@ -44,6 +45,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/gmcadmin', adminRoutes);
 app.use('/api/case-studies', caseStudiesRoutes);
+app.use('/api/resources', resourceRoutes);
 app.use('/api/portal', portalRoutes);
 
 // Health check

@@ -79,6 +79,15 @@ const getStoredApps = (): Record<string, StoredPartnerApp> => {
 const saveStoredApp = (app: StoredPartnerApp) => {
   try {
     const current = getStoredApps();
+    // Prevent duplicate entries for the same email
+    if (app.email) {
+      const emailLower = app.email.trim().toLowerCase();
+      for (const key of Object.keys(current)) {
+        if (current[key]?.email && current[key].email.trim().toLowerCase() === emailLower) {
+          delete current[key];
+        }
+      }
+    }
     current[app.code.toUpperCase()] = app;
     localStorage.setItem('etromo_partner_apps', JSON.stringify(current));
   } catch {

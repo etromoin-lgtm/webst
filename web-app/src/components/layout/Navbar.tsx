@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Layers,
   Zap,
-  Sparkles,
   ShieldCheck,
   BookOpen,
   Code2,

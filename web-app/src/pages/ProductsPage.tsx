@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import PageSEO from '../components/layout/PageSEO';
 import ProductCardItem, { type ProductData } from '../components/ui/ProductCardItem';
-import { ArrowRight, Layers, Sparkles, Building2, GraduationCap, Coffee, Zap, ShoppingBag } from 'lucide-react';
+import { ArrowRight, Layers, Building2, GraduationCap, Coffee, Zap, ShoppingBag } from 'lucide-react';
 
 export const INDUSTRY_CATEGORIES = [
   { id: 'All', label: 'All Industries', icon: Layers },

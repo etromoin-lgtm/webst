@@ -22,6 +22,8 @@ const adminRoutes = require('./src/routes/adminRoutes');
 const caseStudiesRoutes = require('./src/routes/caseStudiesRoutes');
 const resourceRoutes = require('./src/routes/resourceRoutes');
 const portalRoutes = require('./src/routes/portalRoutes');
+const trackingRoutes = require('./src/routes/trackingRoutes');
+const { botTrackerMiddleware } = require('./src/middleware/botTracker');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -30,10 +32,14 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+// Track all incoming bots & AI agents in real-time
+app.use(botTrackerMiddleware);
+
 // Serve uploaded images statically
 app.use('/uploads', express.static(uploadsDir));
 
 // Mount Modular API Routes
+app.use('/api/track', trackingRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/partners', partnerRoutes);

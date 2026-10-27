@@ -27,6 +27,7 @@ const { getAllResources, createResource, deleteResource } = require('../controll
 const { getProducts, createProduct, updateProduct, deleteProduct } = require('../controllers/productController');
 const { getAllTeam, createTeamMember, updateTeamMember, deleteTeamMember } = require('../controllers/teamController');
 const { getSeoSettings, updateSeoSettings, updateSiteSettings, getSiteSettings } = require('../controllers/settingsController');
+const { getBotLogs, getBotStats, simulateBotVisit, clearBotLogs } = require('../controllers/botController');
 
 const { loginRateLimiter } = require('../middleware/rateLimiter');
 const { requireAdminAuth } = require('../middleware/authMiddleware');
@@ -85,6 +86,12 @@ router.post('/seo', updateSeoSettings);
 // Site Settings
 router.get('/settings', getSiteSettings);
 router.post('/settings', updateSiteSettings);
+
+// AI Agents & Crawlers Intelligence
+router.get('/bot-logs', getBotLogs);
+router.get('/bot-stats', getBotStats);
+router.post('/bot-simulate', simulateBotVisit);
+router.delete('/bot-logs', clearBotLogs);
 
 // Stats Overview
 router.get('/stats', getStats);

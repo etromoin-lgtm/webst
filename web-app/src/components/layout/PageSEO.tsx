@@ -22,9 +22,12 @@ export function PageSEO({
   jsonLd,
 }: PageSEOProps) {
   const fullTitle = `${title} | Etromo`;
-  const defaultUrl = 'https://www.etromo.com';
+  const defaultUrl = typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost') 
+    ? window.location.origin 
+    : 'https://etromo.in';
   const pageUrl = url ? `${defaultUrl}${url}` : defaultUrl;
-  const absoluteImage = image.startsWith('http') ? image : `${defaultUrl}${image}`;
+  const resolvedImage = image === '/og-default.png' ? '/logo.png' : image;
+  const absoluteImage = resolvedImage.startsWith('http') ? resolvedImage : `${defaultUrl}${resolvedImage}`;
 
   const jsonLdArray = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [];
 

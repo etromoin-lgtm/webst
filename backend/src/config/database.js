@@ -12,34 +12,45 @@ const usePostgres = Boolean(
 
 let pgPool = null;
 let sqliteDb = null;
+let postgresAvailable = usePostgres;
 
 if (usePostgres) {
-  pgPool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false }
-  });
-  console.log('PostgreSQL/Supabase pool initialized with connection string.');
-} else {
-  // Primary database location is in the root database/ folder
-  const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
-  const primaryDbPath = path.resolve(__dirname, '../../../database/database.sqlite');
-  const fallbackDbPath = path.resolve(__dirname, '../../database.sqlite');
-  const dbPath = isServerless 
-    ? path.join('/tmp', 'database.sqlite')
-    : (fs.existsSync(primaryDbPath) ? primaryDbPath : fallbackDbPath);
-
-  sqliteDb = new sqlite3.Database(dbPath, (err) => {
-    if (err) {
-      console.error('Error opening SQLite database', err.message);
-    } else {
-      console.log('SQLite database connected at ' + dbPath);
-      initDB();
-    }
-  });
+  try {
+    pgPool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false },
+      connectionTimeoutMillis: 3000
+    });
+    pgPool.on('error', (err) => {
+      console.warn('PostgreSQL pool background error, switching to SQLite:', err.message);
+      postgresAvailable = false;
+    });
+    console.log('PostgreSQL/Supabase pool initialized with connection string.');
+  } catch (poolErr) {
+    console.warn('Failed to initialize PostgreSQL pool, using SQLite:', poolErr.message);
+    postgresAvailable = false;
+  }
 }
 
+// Always initialize SQLite as reliable database engine & failover
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const primaryDbPath = path.resolve(__dirname, '../../../database/database.sqlite');
+const fallbackDbPath = path.resolve(__dirname, '../../database.sqlite');
+const dbPath = isServerless 
+  ? path.join('/tmp', 'database.sqlite')
+  : (fs.existsSync(primaryDbPath) ? primaryDbPath : fallbackDbPath);
+
+sqliteDb = new sqlite3.Database(dbPath, (err) => {
+  if (err) {
+    console.error('Error opening SQLite database', err.message);
+  } else {
+    console.log('SQLite database connected at ' + dbPath);
+    initDB();
+  }
+});
+
 function initDB() {
-  if (usePostgres) return; // Supabase tables created via migration / schema
+  if (!sqliteDb) return;
   const db = sqliteDb;
   sqliteDb.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS partner_applications (
@@ -457,6 +468,42 @@ function initDB() {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
+    db.run(`CREATE TABLE IF NOT EXISTS bot_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      bot_name TEXT NOT NULL,
+      bot_category TEXT NOT NULL,
+      user_agent TEXT NOT NULL,
+      ip_address TEXT,
+      path TEXT NOT NULL,
+      method TEXT DEFAULT 'GET',
+      status_code INTEGER DEFAULT 200,
+      referer TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_bot_logs_category ON bot_logs(bot_category)`, () => {});
+    db.run(`CREATE INDEX IF NOT EXISTS idx_bot_logs_created_at ON bot_logs(created_at DESC)`, () => {});
+
+    // Seed default site settings if empty
+    db.get('SELECT COUNT(*) as count FROM site_settings', (err, row) => {
+      if (!err && (!row || row.count === 0)) {
+        const defaultSettings = [
+          ['site_name', 'Etromo Technologies'],
+          ['site_tagline', 'Engineering Intelligent Software, Systems & Autonomous Workflows'],
+          ['site_url', 'https://etromo.in'],
+          ['contact_email', 'contact@etromo.in'],
+          ['contact_phone', '+91 99999 99999'],
+          ['social_linkedin', 'https://linkedin.com/company/etromo'],
+          ['social_x', 'https://x.com/etromoin'],
+          ['social_github', 'https://github.com/etromo'],
+          ['social_instagram', 'https://instagram.com/etromo.in'],
+          ['social_whatsapp', 'https://wa.me/919999999999']
+        ];
+        defaultSettings.forEach(([k, v]) => {
+          db.run('INSERT OR IGNORE INTO site_settings (key, value) VALUES (?, ?)', [k, v], () => {});
+        });
+      }
+    });
+
     db.run(`CREATE TABLE IF NOT EXISTS case_studies (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       slug TEXT UNIQUE NOT NULL,
@@ -504,6 +551,20 @@ function initDB() {
     db.run("ALTER TABLE case_studies ADD COLUMN featured_on_homepage INTEGER DEFAULT 0", () => {});
     db.run("ALTER TABLE case_studies ADD COLUMN featured_in_trusted_by INTEGER DEFAULT 0", () => {});
     db.run("ALTER TABLE case_studies ADD COLUMN custom_favicon_url TEXT", () => {});
+
+    // AI Agents & Web Crawlers Tracking Table
+    db.run(`CREATE TABLE IF NOT EXISTS bot_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      bot_name TEXT NOT NULL,
+      bot_category TEXT NOT NULL,
+      user_agent TEXT NOT NULL,
+      ip_address TEXT,
+      path TEXT NOT NULL,
+      method TEXT DEFAULT 'GET',
+      status_code INTEGER DEFAULT 200,
+      referer TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
 
     // --- CLIENT PORTAL & B2B TABLES ---
     db.run(`CREATE TABLE IF NOT EXISTS organizations (
@@ -738,38 +799,20 @@ const toPgSql = (sql) => {
   return sql.replace(/\?/g, () => `$${index++}`);
 };
 
-// Helper: run insert/update/delete
-const run = async (text, params = []) => {
-  if (usePostgres) {
-    let pgText = toPgSql(text);
-    // If INSERT and lacks RETURNING id, add RETURNING id for lastID parity
-    const isInsert = /^\s*INSERT\s+INTO/i.test(pgText);
-    if (isInsert && !/RETURNING/i.test(pgText)) {
-      pgText += ' RETURNING id';
-    }
-    const res = await pgPool.query(pgText, params);
-    const lastID = res.rows && res.rows[0] && res.rows[0].id ? res.rows[0].id : null;
-    return { lastID, changes: res.rowCount, rowCount: res.rowCount, rows: res.rows };
-  }
-
+const executeSqliteRun = (text, params) => {
   return new Promise((resolve, reject) => {
+    if (!sqliteDb) return reject(new Error('SQLite database not initialized'));
     const sqliteText = text.replace(/\$\d+/g, '?');
     sqliteDb.run(sqliteText, params, function (err) {
       if (err) reject(err);
-      else resolve({ lastID: this.lastID, changes: this.changes });
+      else resolve({ lastID: this.lastID, changes: this.changes, rowCount: this.changes });
     });
   });
 };
 
-// Helper: get all rows
-const all = async (text, params = []) => {
-  if (usePostgres) {
-    const pgText = toPgSql(text);
-    const res = await pgPool.query(pgText, params);
-    return res.rows || [];
-  }
-
+const executeSqliteAll = (text, params) => {
   return new Promise((resolve, reject) => {
+    if (!sqliteDb) return reject(new Error('SQLite database not initialized'));
     const sqliteText = text.replace(/\$\d+/g, '?');
     sqliteDb.all(sqliteText, params, (err, rows) => {
       if (err) reject(err);
@@ -778,15 +821,9 @@ const all = async (text, params = []) => {
   });
 };
 
-// Helper: get single row
-const get = async (text, params = []) => {
-  if (usePostgres) {
-    const pgText = toPgSql(text);
-    const res = await pgPool.query(pgText, params);
-    return res.rows && res.rows.length > 0 ? res.rows[0] : null;
-  }
-
+const executeSqliteGet = (text, params) => {
   return new Promise((resolve, reject) => {
+    if (!sqliteDb) return reject(new Error('SQLite database not initialized'));
     const sqliteText = text.replace(/\$\d+/g, '?');
     sqliteDb.get(sqliteText, params, (err, row) => {
       if (err) reject(err);
@@ -795,11 +832,77 @@ const get = async (text, params = []) => {
   });
 };
 
+// Helper: run insert/update/delete
+const run = async (text, params = []) => {
+  if (postgresAvailable && pgPool) {
+    try {
+      let pgText = toPgSql(text);
+      // If INSERT and lacks RETURNING id, add RETURNING id for lastID parity
+      const isInsert = /^\s*INSERT\s+INTO/i.test(pgText);
+      if (isInsert && !/RETURNING/i.test(pgText)) {
+        pgText += ' RETURNING id';
+      }
+      const res = await pgPool.query(pgText, params);
+      const lastID = res.rows && res.rows[0] && res.rows[0].id ? res.rows[0].id : null;
+      return { lastID, changes: res.rowCount, rowCount: res.rowCount, rows: res.rows };
+    } catch (pgErr) {
+      console.warn('PostgreSQL query error, falling back to SQLite:', pgErr.message);
+      if (pgErr.code === 'ENOTFOUND' || pgErr.code === 'ECONNREFUSED' || pgErr.code === 'ETIMEDOUT') {
+        postgresAvailable = false;
+        console.warn('PostgreSQL connection offline. Permanently routing to SQLite.');
+      }
+      return executeSqliteRun(text, params);
+    }
+  }
+
+  return executeSqliteRun(text, params);
+};
+
+// Helper: get all rows
+const all = async (text, params = []) => {
+  if (postgresAvailable && pgPool) {
+    try {
+      const pgText = toPgSql(text);
+      const res = await pgPool.query(pgText, params);
+      return res.rows || [];
+    } catch (pgErr) {
+      console.warn('PostgreSQL query error, falling back to SQLite:', pgErr.message);
+      if (pgErr.code === 'ENOTFOUND' || pgErr.code === 'ECONNREFUSED' || pgErr.code === 'ETIMEDOUT') {
+        postgresAvailable = false;
+        console.warn('PostgreSQL connection offline. Permanently routing to SQLite.');
+      }
+      return executeSqliteAll(text, params);
+    }
+  }
+
+  return executeSqliteAll(text, params);
+};
+
+// Helper: get single row
+const get = async (text, params = []) => {
+  if (postgresAvailable && pgPool) {
+    try {
+      const pgText = toPgSql(text);
+      const res = await pgPool.query(pgText, params);
+      return res.rows && res.rows.length > 0 ? res.rows[0] : null;
+    } catch (pgErr) {
+      console.warn('PostgreSQL query error, falling back to SQLite:', pgErr.message);
+      if (pgErr.code === 'ENOTFOUND' || pgErr.code === 'ECONNREFUSED' || pgErr.code === 'ETIMEDOUT') {
+        postgresAvailable = false;
+        console.warn('PostgreSQL connection offline. Permanently routing to SQLite.');
+      }
+      return executeSqliteGet(text, params);
+    }
+  }
+
+  return executeSqliteGet(text, params);
+};
+
 module.exports = { 
   run, 
   all, 
   get, 
   db: sqliteDb, 
   pgPool, 
-  isPostgres: usePostgres 
+  isPostgres: () => postgresAvailable 
 };

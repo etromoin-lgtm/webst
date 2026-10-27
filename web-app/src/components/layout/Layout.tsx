@@ -3,9 +3,14 @@ import { useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import CookieConsent from '../common/CookieConsent';
+import { trackCurrentVisitor } from '../../utils/aiAgentTracker';
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+
+  useEffect(() => {
+    trackCurrentVisitor();
+  }, [location.pathname]);
 
   useEffect(() => {
     const timer = setTimeout(() => {

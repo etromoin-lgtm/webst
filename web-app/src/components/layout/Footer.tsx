@@ -7,18 +7,37 @@ import {
   GithubIcon,
   YoutubeIcon,
   WhatsappIcon,
-  MailIcon
+  MailIcon,
+  XIcon,
+  FacebookIcon
 } from '../../SocialIcons';
 
 export function Footer() {
-  const [siteSettings, setSiteSettings] = useState<any>({});
+  const [siteSettings, setSiteSettings] = useState<any>(() => {
+    try {
+      const saved = localStorage.getItem('etromo_site_settings');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
   const currentYear = new Date().getFullYear();
 
   useEffect(() => {
     fetch('/api/settings')
-      .then(res => res.json())
-      .then(data => setSiteSettings(data.settings || {}))
-      .catch(console.error);
+      .then(res => {
+        if (!res.ok) throw new Error('API unavailable');
+        return res.json();
+      })
+      .then(data => {
+        if (data.settings && Object.keys(data.settings).length > 0) {
+          setSiteSettings(data.settings);
+          try {
+            localStorage.setItem('etromo_site_settings', JSON.stringify(data.settings));
+          } catch {}
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const handleOpenCookies = (e: React.MouseEvent) => {
@@ -40,10 +59,12 @@ export function Footer() {
   // Resolve official destinations from siteSettings
   const socialLinks = {
     linkedin: siteSettings.linkedin_url?.trim() || 'https://www.linkedin.com/company/etromo',
+    x: siteSettings.x_url?.trim() || siteSettings.twitter_url?.trim() || 'https://x.com/etromo',
     github: siteSettings.github_url?.trim() || 'https://github.com/etromo',
     instagram: siteSettings.instagram_url?.trim() || 'https://www.instagram.com/etromo',
     youtube: siteSettings.youtube_url?.trim() || '',
-    whatsapp: siteSettings.whatsapp_url?.trim() || ''
+    whatsapp: siteSettings.whatsapp_url?.trim() || '',
+    facebook: siteSettings.facebook_url?.trim() || ''
   };
 
   return (
@@ -172,6 +193,18 @@ export function Footer() {
               >
                 <LinkedinIcon size={18} />
               </a>
+              {socialLinks.x && (
+                <a 
+                  href={socialLinks.x} 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  className="footer-social-link" 
+                  aria-label="ETROMO on X (formerly Twitter)"
+                  title="X (Twitter)"
+                >
+                  <XIcon size={18} />
+                </a>
+              )}
               <a 
                 href={socialLinks.github} 
                 target="_blank" 
@@ -214,6 +247,18 @@ export function Footer() {
                   title="WhatsApp"
                 >
                   <WhatsappIcon size={18} />
+                </a>
+              )}
+              {socialLinks.facebook && (
+                <a 
+                  href={socialLinks.facebook} 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  className="footer-social-link" 
+                  aria-label="ETROMO on Facebook"
+                  title="Facebook"
+                >
+                  <FacebookIcon size={18} />
                 </a>
               )}
             </div>

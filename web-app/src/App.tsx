@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import 'react-quill-new/dist/quill.snow.css';
 import './App.css';
@@ -15,11 +15,12 @@ function App() {
     <HelmetProvider>
       <Router>
         <Routes>
-          {/* Admin Frontend: Dedicated GMCADMIN enterprise management portal */}
+          {/* Admin Frontend: Dedicated enterprise management portal */}
+          <Route path="/admin/*" element={<AdminApp />} />
+          <Route path="/admin" element={<AdminApp />} />
           <Route path="/GMCADMIN/*" element={<AdminApp />} />
           <Route path="/gmcadmin/*" element={<AdminApp />} />
-          <Route path="/admin" element={<Navigate to="/GMCADMIN" replace />} />
-          <Route path="/admin/*" element={<Navigate to="/GMCADMIN" replace />} />
+          <Route path="/gmcadmin" element={<AdminApp />} />
 
           {/* Standalone Full-screen Portal Experiences */}
           <Route path="/portal/login" element={<ClientLoginPage />} />

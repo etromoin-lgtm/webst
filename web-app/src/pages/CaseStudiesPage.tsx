@@ -4,9 +4,8 @@ import { Search, Filter, ArrowDown, ArrowRight, ShieldCheck, Sparkles, X } from 
 import PageSEO from '../components/layout/PageSEO';
 import CaseStudyCard from '../components/case-studies/CaseStudyCard';
 import type { CaseStudy } from '../types/caseStudy';
+import { API_BASE } from '../utils/apiConfig';
 import './CaseStudies.css';
-
-const API_BASE = '';
 
 export function CaseStudiesPage() {
   const [caseStudies, setCaseStudies] = useState<CaseStudy[]>([]);
@@ -26,17 +25,37 @@ export function CaseStudiesPage() {
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/case-studies`);
-      const data = await res.json();
-      if (data.success && data.case_studies) {
-        setCaseStudies(data.case_studies);
-      } else {
-        setCaseStudies([]);
+      const ct = res.headers.get('content-type') || '';
+      if (res.ok && ct.includes('application/json')) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.case_studies) && data.case_studies.length > 0) {
+          setCaseStudies(data.case_studies);
+          setLoading(false);
+          return;
+        }
       }
     } catch (err) {
       console.error('Error fetching case studies:', err);
-    } finally {
-      setLoading(false);
     }
+
+    // Fallback: check localStorage for saved case studies
+    try {
+      const ls = localStorage.getItem('etromo_admin_case_studies');
+      if (ls) {
+        const parsed = JSON.parse(ls);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const published = parsed.filter((cs: CaseStudy) => cs.status === 'published');
+          if (published.length > 0) {
+            setCaseStudies(published);
+            setLoading(false);
+            return;
+          }
+        }
+      }
+    } catch {}
+
+    setCaseStudies([]);
+    setLoading(false);
   };
 
   // Derive available categories and industries

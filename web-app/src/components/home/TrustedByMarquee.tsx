@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getFaviconUrl, getFallbackInitials } from '../../utils/favicon';
 import type { CaseStudy } from '../../types/caseStudy';
+import { API_BASE } from '../../utils/apiConfig';
 import './TrustedByMarquee.css';
 
 interface TrustedItem {
@@ -26,7 +27,7 @@ export const TrustedByMarquee: React.FC = () => {
     let isMounted = true;
     const fetchTrusted = async () => {
       try {
-        const res = await fetch('/api/case-studies?featured_in_trusted_by=true');
+        const res = await fetch(`${API_BASE}/api/case-studies?featured_in_trusted_by=true`);
         const json = await res.json();
         if (isMounted && json.success && Array.isArray(json.case_studies) && json.case_studies.length > 0) {
           const mapped: TrustedItem[] = json.case_studies.map((cs: CaseStudy) => ({

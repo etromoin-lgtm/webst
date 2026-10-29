@@ -417,7 +417,7 @@ export const CaseStudiesStudio: React.FC<CaseStudiesStudioProps> = ({ onStatsCha
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {form.slug && (
               <a
-                href={`http://localhost:5173/case-studies/${form.slug}`}
+                href={`/case-studies/${form.slug}`}
                 target="_blank"
                 rel="noreferrer"
                 style={{
@@ -2253,7 +2253,7 @@ export const CaseStudiesStudio: React.FC<CaseStudiesStudioProps> = ({ onStatsCha
                       <td style={{ padding: '16px 18px', textAlign: 'right' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                           <a
-                            href={`http://localhost:5173/case-studies/${cs.slug}`}
+                            href={`/case-studies/${cs.slug}`}
                             target="_blank"
                             rel="noreferrer"
                             title="View public page"

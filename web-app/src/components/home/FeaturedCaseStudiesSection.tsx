@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, ArrowUpRight, ExternalLink } from 'lucide-react';
 import { getFaviconUrl, extractDomain, getFallbackInitials } from '../../utils/favicon';
 import type { CaseStudy } from '../../types/caseStudy';
+import { API_BASE } from '../../utils/apiConfig';
 import './FeaturedCaseStudiesSection.css';
 
 export const FeaturedCaseStudiesSection: React.FC = () => {
@@ -13,13 +14,13 @@ export const FeaturedCaseStudiesSection: React.FC = () => {
     let isMounted = true;
     const fetchFeatured = async () => {
       try {
-        const res = await fetch('/api/case-studies?featured_on_homepage=true');
+        const res = await fetch(`${API_BASE}/api/case-studies?featured_on_homepage=true`);
         const json = await res.json();
         if (isMounted && json.success && Array.isArray(json.case_studies) && json.case_studies.length > 0) {
           setStudies(json.case_studies.slice(0, 3));
         } else if (isMounted) {
           // If none specifically flagged yet, fetch top 3 published
-          const fallbackRes = await fetch('/api/case-studies');
+          const fallbackRes = await fetch(`${API_BASE}/api/case-studies`);
           const fallbackJson = await fallbackRes.json();
           if (isMounted && fallbackJson.success && Array.isArray(fallbackJson.case_studies)) {
             setStudies(fallbackJson.case_studies.slice(0, 3));

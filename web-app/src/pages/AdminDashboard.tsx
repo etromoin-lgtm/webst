@@ -475,6 +475,12 @@ export function AdminDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ page, title, description })
       });
+      try {
+        const raw = localStorage.getItem('etromo_seo_cache');
+        const map = raw ? JSON.parse(raw) : {};
+        map[page] = { page, title, description };
+        localStorage.setItem('etromo_seo_cache', JSON.stringify(map));
+      } catch {}
     } catch {}
     loadAll();
   };
@@ -970,7 +976,7 @@ export function AdminDashboard() {
         <button className="admin-sidebar-toggle" onClick={() => setSidebarOpen(o => !o)}>
           ☰ Menu
         </button>
-        <a href="http://localhost:5173/" target="_blank" rel="noreferrer" className="admin-header-view-link" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px', textDecoration: 'none' }}>← View Site</a>
+        <a href="/" target="_blank" rel="noreferrer" className="admin-header-view-link" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px', textDecoration: 'none' }}>← View Site</a>
         <div className="admin-header-actions" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button onClick={loadAll} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>↻</button>
           <button onClick={handleLogout} style={{ background: 'rgba(255,80,80,0.1)', border: '1px solid rgba(255,80,80,0.2)', color: '#FF5050', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>Logout</button>

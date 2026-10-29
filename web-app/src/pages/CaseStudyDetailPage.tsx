@@ -22,9 +22,8 @@ import BeforeAfterTable from '../components/case-studies/BeforeAfterTable';
 import CustomDataTable from '../components/case-studies/CustomDataTable';
 import CaseStudyCard from '../components/case-studies/CaseStudyCard';
 import type { CaseStudy } from '../types/caseStudy';
+import { API_BASE } from '../utils/apiConfig';
 import './CaseStudies.css';
-
-const API_BASE = '';
 
 export function CaseStudyDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -39,21 +38,48 @@ export function CaseStudyDetailPage() {
   useEffect(() => {
     if (!slug) return;
     setLoading(true);
-    fetch(`${API_BASE}/api/case-studies/${slug}`)
-      .then(res => res.json())
+    setError(null);
+    const search = window.location.search || '';
+
+    fetch(`${API_BASE}/api/case-studies/${slug}${search}`)
+      .then(res => {
+        const ct = res.headers.get('content-type') || '';
+        if (res.ok && ct.includes('application/json')) {
+          return res.json();
+        }
+        throw new Error('Not found or invalid response');
+      })
       .then(data => {
         if (data.success && data.case_study) {
           setCaseStudy(data.case_study);
           loadRelated(data.case_study.slug);
+          setLoading(false);
         } else {
-          setError('Case study not found');
+          tryFallback();
         }
       })
-      .catch(err => {
-        console.error(err);
-        setError('Failed to load case study');
-      })
-      .finally(() => setLoading(false));
+      .catch(() => {
+        tryFallback();
+      });
+
+    function tryFallback() {
+      try {
+        const ls = localStorage.getItem('etromo_admin_case_studies');
+        if (ls) {
+          const parsed = JSON.parse(ls);
+          if (Array.isArray(parsed)) {
+            const found = parsed.find((cs: CaseStudy) => cs.slug === slug);
+            if (found) {
+              setCaseStudy(found);
+              setLoading(false);
+              return;
+            }
+          }
+        }
+      } catch {}
+      setError('Case study not found');
+      setLoading(false);
+    }
   }, [slug]);
 
   const loadRelated = async (currentSlug: string) => {
